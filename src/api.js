@@ -1,5 +1,18 @@
 const { InstanceStatus, TCPHelper } = require('@companion-module/base')
 
+// Decode a hex byte string produced by the memory-name DTH handler into a
+// human-readable name.  Each byte in the V-160HD response is one character;
+// the device NUL-terminates / pads the fixed-length field with 0x00 bytes.
+function hexToMemoryName(hexStr) {
+	let result = ''
+	for (let i = 0; i + 1 < hexStr.length; i += 2) {
+		const code = parseInt(hexStr.substring(i, i + 2), 16)
+		if (code === 0) break
+		result += String.fromCharCode(code)
+	}
+	return result
+}
+
 module.exports = {
 	initConnection: function () {
 		let self = this
@@ -468,21 +481,22 @@ module.exports = {
 													let memoryCharIndex = parseInt(param3, 16)
 
 													//there are 8 characters in each memory name and they will all come in as individual messages
-													//and not necessarily in order
-													let memoryName = self.DATA[`memory${memoryNumber}`]
-													if (memoryName === undefined) {
-														memoryName = ''
+													//and not necessarily in order; pre-size to 16 hex chars (8 NUL bytes) so out-of-order
+													//writes land at the correct offset
+													let memoryHex = self.DATA[`memory${memoryNumber}`]
+													if (memoryHex === undefined) {
+														memoryHex = '0000000000000000'
 													}
 
-													//value is the character, put it in the correct spot in the memory name based on the memoryCharIndex
-													memoryName =
-														memoryName.substring(0, memoryCharIndex * 2) +
+													//value is a 2-hex-char byte; place it at the correct 2-char offset in the hex buffer
+													memoryHex =
+														memoryHex.substring(0, memoryCharIndex * 2) +
 														value +
-														memoryName.substring(memoryCharIndex * 2 + 1) //replace the character at the index
+														memoryHex.substring(memoryCharIndex * 2 + 2)
 
-													self.DATA[`memory${memoryNumber}`] = memoryName
+													self.DATA[`memory${memoryNumber}`] = memoryHex
 													let variableObj = {}
-													variableObj[`memoryname_${memoryNumber + 1}`] = memoryName
+													variableObj[`memoryname_${memoryNumber + 1}`] = hexToMemoryName(memoryHex)
 													self.setVariableValues(variableObj)
 												}
 
@@ -493,12 +507,12 @@ module.exports = {
 														self.DATA.lastMemory = parseInt(value, 16)
 
 														//get the memory name based on the last memory loaded
-														let memoryName = self.DATA[`memory${self.DATA.lastMemory}`]
+														let lastMemoryHex = self.DATA[`memory${self.DATA.lastMemory}`] || ''
 
 														//update variables
 														let variableObj = {}
 														variableObj['lastmemorynumber'] = self.DATA.lastMemory
-														variableObj['lastmemoryname'] = memoryName
+														variableObj['lastmemoryname'] = hexToMemoryName(lastMemoryHex)
 														self.setVariableValues(variableObj)
 													}
 												}
