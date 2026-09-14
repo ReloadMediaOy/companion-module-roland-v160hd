@@ -59,6 +59,41 @@ module.exports = {
 			},
 		}
 
+		feedbacks.pgmPvwSource = {
+			type: 'boolean',
+			name: 'PGM/PVW Source',
+			description: 'Indicate if a source is currently selected on Program or Preview',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Bus',
+					id: 'bus',
+					default: 'pgm',
+					choices: [
+						{ id: 'pgm', label: 'Program (PGM)' },
+						{ id: 'pvw', label: 'Preview (PVW)' },
+					],
+				},
+				{
+					type: 'dropdown',
+					label: 'Source',
+					id: 'source',
+					default: self.CHOICES_PGMPVW_SELECT[0].id,
+					choices: self.CHOICES_PGMPVW_SELECT,
+				},
+			],
+			callback: function (feedback, bank) {
+				let opt = feedback.options
+				let val = opt.bus === 'pgm' ? self.DATA.pgmsource : self.DATA.pvwsource
+				if (val === undefined) return false
+				return val == opt.source
+			},
+		}
+
 		feedbacks.auxTally = {
 			type: 'boolean',
 			name: 'Aux Tally State',
