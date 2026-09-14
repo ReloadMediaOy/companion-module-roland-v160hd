@@ -48,6 +48,12 @@ module.exports = {
 		variables.push({ variableId: 'aux2link', name: 'Aux Link' })
 		variables.push({ variableId: 'aux3link', name: 'Aux Link' })
 
+		//Transition State
+		variables.push({ variableId: 'transition_type', name: 'Transition Type' })
+		variables.push({ variableId: 'mix_type', name: 'Mix Type' })
+		variables.push({ variableId: 'wipe_type', name: 'Wipe Type' })
+		variables.push({ variableId: 'wipe_direction', name: 'Wipe Direction' })
+
 		variables.push({ variableI: 'freeze', name: 'Freeze On/Off' })
 
 		//memory names
@@ -204,6 +210,43 @@ module.exports = {
 			variableObj.aux1link = self.DATA.aux1link == '01' ? 'On' : 'Off'
 			variableObj.aux2link = self.DATA.aux2link == '01' ? 'On' : 'Off'
 			variableObj.aux3link = self.DATA.aux3link == '01' ? 'On' : 'Off'
+
+			//Transition State
+			let transitionType = self.CHOICES_TRANSITION_TYPES.find((item) => {
+				return item.id == self.DATA.transitiontype
+			})
+			if (transitionType !== undefined) {
+				variableObj.transition_type = transitionType.label
+			} else {
+				variableObj.transition_type = self.DATA.transitiontype
+			}
+
+			let mixType = self.CHOICES_MIX_TYPES.find((item) => {
+				return item.id == self.DATA.mixtype
+			})
+			if (mixType !== undefined) {
+				variableObj.mix_type = mixType.label
+			} else {
+				variableObj.mix_type = self.DATA.mixtype
+			}
+
+			let wipeType = self.CHOICES_WIPE_TYPES.find((item) => {
+				return item.id == self.DATA.wipetype
+			})
+			if (wipeType !== undefined) {
+				variableObj.wipe_type = wipeType.label
+			} else {
+				variableObj.wipe_type = self.DATA.wipetype
+			}
+
+			let wipeDirection = self.CHOICES_WIPE_DIRECTIONS.find((item) => {
+				return item.id == self.DATA.wipedirection
+			})
+			if (wipeDirection !== undefined) {
+				variableObj.wipe_direction = wipeDirection.label
+			} else {
+				variableObj.wipe_direction = self.DATA.wipedirection
+			}
 
 			//Freeze
 			variableObj.freeze = self.DATA.freeze == '01' ? 'On' : 'Off'

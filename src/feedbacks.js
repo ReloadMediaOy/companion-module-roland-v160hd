@@ -456,6 +456,106 @@ module.exports = {
 			},
 		}
 
+		feedbacks.transitionType = {
+			type: 'boolean',
+			name: 'Transition Type',
+			description: 'Indicate if the transition type is set to the selected value',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Type',
+					id: 'type',
+					default: self.CHOICES_TRANSITION_TYPES[0].id,
+					choices: self.CHOICES_TRANSITION_TYPES,
+				},
+			],
+			callback: function (feedback, bank) {
+				let opt = feedback.options
+				let val = self.DATA.transitiontype
+				if (val === undefined) return false
+				return val == opt.type
+			},
+		}
+
+		feedbacks.mixType = {
+			type: 'boolean',
+			name: 'Mix Type',
+			description: 'Indicate if the mix type is set to the selected value',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Type',
+					id: 'type',
+					default: self.CHOICES_MIX_TYPES[0].id,
+					choices: self.CHOICES_MIX_TYPES,
+				},
+			],
+			callback: function (feedback, bank) {
+				let opt = feedback.options
+				let val = self.DATA.mixtype
+				if (val === undefined) return false
+				return val == opt.type
+			},
+		}
+
+		feedbacks.wipeType = {
+			type: 'boolean',
+			name: 'Wipe Type',
+			description: 'Indicate if the wipe type is set to the selected value',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Type',
+					id: 'type',
+					default: self.CHOICES_WIPE_TYPES[0].id,
+					choices: self.CHOICES_WIPE_TYPES,
+				},
+			],
+			callback: function (feedback, bank) {
+				let opt = feedback.options
+				let val = self.DATA.wipetype
+				if (val === undefined) return false
+				return val == opt.type
+			},
+		}
+
+		feedbacks.wipeDirection = {
+			type: 'boolean',
+			name: 'Wipe Direction',
+			description: 'Indicate if the wipe direction is set to the selected value',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Direction',
+					id: 'direction',
+					default: self.CHOICES_WIPE_DIRECTIONS[0].id,
+					choices: self.CHOICES_WIPE_DIRECTIONS,
+				},
+			],
+			callback: function (feedback, bank) {
+				let opt = feedback.options
+				let val = self.DATA.wipedirection
+				if (val === undefined) return false
+				return val == opt.direction
+			},
+		}
+
 		self.setFeedbackDefinitions(feedbacks)
 	},
 }
