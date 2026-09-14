@@ -74,6 +74,7 @@ module.exports = {
 		self.getFreezeData()
 		self.getOutputData()
 		self.getAuxLinkData()
+		self.getMonitorData()
 
 		self.getMemoryNames()
 		self.getLastMemoryLoaded()
@@ -135,6 +136,23 @@ module.exports = {
 		self.sendRawCommand('RQH:020154,000001;') //Aux 1 link on/off
 		self.sendRawCommand('RQH:020155,000001;') //Aux 2 link on/off
 		self.sendRawCommand('RQH:020156,000001;') //Aux 3 link on/off
+	},
+
+	getMonitorData: function () {
+		let self = this
+
+		// Monitor SW 1–4 Assign are consecutive single-byte registers (020116–020119).
+		self.sendRawCommand('RQH:020116,000004;') //Monitor 1–4 assign (4-byte block)
+	},
+
+	_parseHexBlock: function (value, expectedBytes) {
+		if (value.length !== expectedBytes * 2) return null
+		if (!/^[0-9A-Fa-f]+$/.test(value)) return null
+		const out = []
+		for (let i = 0; i < expectedBytes; i++) {
+			out.push(value.slice(i * 2, i * 2 + 2).toUpperCase())
+		}
+		return out
 	},
 
 	/*getTallyData: function() {
@@ -385,6 +403,53 @@ module.exports = {
 													//aux link mode
 													self.DATA.auxlinkmode = value
 													self.logVerbose('Received Aux Link Mode: ' + value)
+												}
+
+												if (param1 == '02' && param2 == '01' && param3 == '16') {
+													//monitor assign block (020116–020119) or single monitor 1 notification
+													const block = self._parseHexBlock(value, 4)
+													if (block) {
+														self.DATA.monitor1assign = block[0]
+														self.DATA.monitor2assign = block[1]
+														self.DATA.monitor3assign = block[2]
+														self.DATA.monitor4assign = block[3]
+														self.logVerbose('Received monitor assign block: ' + value)
+													} else if (self._parseHexBlock(value, 1)) {
+														self.DATA.monitor1assign = value.toUpperCase()
+														self.logVerbose('Received Monitor 1 Assign: ' + value)
+													} else {
+														self.log('warn', 'Unexpected value for monitor assign block: ' + value)
+													}
+												}
+
+												if (param1 == '02' && param2 == '01' && param3 == '17') {
+													//monitor 2 assign notification
+													if (self._parseHexBlock(value, 1)) {
+														self.DATA.monitor2assign = value.toUpperCase()
+														self.logVerbose('Received Monitor 2 Assign: ' + value)
+													} else {
+														self.log('warn', 'Unexpected value for monitor 2 assign: ' + value)
+													}
+												}
+
+												if (param1 == '02' && param2 == '01' && param3 == '18') {
+													//monitor 3 assign notification
+													if (self._parseHexBlock(value, 1)) {
+														self.DATA.monitor3assign = value.toUpperCase()
+														self.logVerbose('Received Monitor 3 Assign: ' + value)
+													} else {
+														self.log('warn', 'Unexpected value for monitor 3 assign: ' + value)
+													}
+												}
+
+												if (param1 == '02' && param2 == '01' && param3 == '19') {
+													//monitor 4 assign notification
+													if (self._parseHexBlock(value, 1)) {
+														self.DATA.monitor4assign = value.toUpperCase()
+														self.logVerbose('Received Monitor 4 Assign: ' + value)
+													} else {
+														self.log('warn', 'Unexpected value for monitor 4 assign: ' + value)
+													}
 												}
 
 												if (param1 == '02' && param2 == '01' && param3 == '54') {
