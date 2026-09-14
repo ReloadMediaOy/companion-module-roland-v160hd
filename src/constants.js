@@ -116,6 +116,21 @@ module.exports = {
 		{ id: '0A', label: '16 Still-View' },
 	],
 
+	CHOICES_MONITOR_ASSIGN: [
+		{ id: '00', label: 'N/A' },
+		{ id: '01', label: 'Multi-View' },
+		{ id: '02', label: '16 Input-View' },
+		{ id: '03', label: '16 Still-View' },
+		{ id: '04', label: 'Program' },
+		{ id: '05', label: 'Sub Program' },
+		{ id: '06', label: 'Preview' },
+		{ id: '07', label: 'AUX 1' },
+		{ id: '08', label: 'AUX 2' },
+		{ id: '09', label: 'AUX 3' },
+		{ id: '0A', label: 'DSK 1 Source' },
+		{ id: '0B', label: 'DSK 2 Source' },
+	],
+
 	CHOICES_PINPDSK: [
 		{ id: 18, label: 'Program Layer PinP & Key 1' },
 		{ id: 19, label: 'Program Layer PinP & Key 2' },
