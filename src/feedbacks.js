@@ -249,6 +249,43 @@ module.exports = {
 			},
 		}
 
+		feedbacks.monitorAssign = {
+			type: 'boolean',
+			name: 'Monitor Assignment',
+			description: 'Indicate if a monitor is assigned to a specific source',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Monitor',
+					id: 'monitor',
+					default: '1',
+					choices: [
+						{ id: '1', label: 'Monitor 1' },
+						{ id: '2', label: 'Monitor 2' },
+						{ id: '3', label: 'Monitor 3' },
+						{ id: '4', label: 'Monitor 4' },
+					],
+				},
+				{
+					type: 'dropdown',
+					label: 'Assignment',
+					id: 'assign',
+					default: self.CHOICES_MONITOR_ASSIGN[0].id,
+					choices: self.CHOICES_MONITOR_ASSIGN,
+				},
+			],
+			callback: function (feedback, bank) {
+				let opt = feedback.options
+				let val = self.DATA['monitor' + opt.monitor + 'assign']
+				if (val === undefined) return false
+				return val == opt.assign
+			},
+		}
+
 		feedbacks.auxLinkMode = {
 			type: 'boolean',
 			name: 'Aux Link Mode',
