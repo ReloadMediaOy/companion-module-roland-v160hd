@@ -74,6 +74,7 @@ module.exports = {
 		self.getFreezeData()
 		self.getOutputData()
 		self.getAuxLinkData()
+		self.getTransitionData()
 
 		self.getMemoryNames()
 		self.getLastMemoryLoaded()
@@ -135,6 +136,22 @@ module.exports = {
 		self.sendRawCommand('RQH:020154,000001;') //Aux 1 link on/off
 		self.sendRawCommand('RQH:020155,000001;') //Aux 2 link on/off
 		self.sendRawCommand('RQH:020156,000001;') //Aux 3 link on/off
+	},
+
+	getTransitionData: function () {
+		let self = this
+
+		self.sendRawCommand('RQH:001800,000004;') //Transition type + mix type + wipe type + wipe direction
+	},
+
+	_parseHexBlock: function (value, expectedBytes) {
+		if (value.length !== expectedBytes * 2) return null
+		if (!/^[0-9A-Fa-f]+$/.test(value)) return null
+		const out = []
+		for (let i = 0; i < expectedBytes; i++) {
+			out.push(value.slice(i * 2, i * 2 + 2).toUpperCase())
+		}
+		return out
 	},
 
 	/*getTallyData: function() {
@@ -307,6 +324,56 @@ module.exports = {
 														if (lookup) {
 															self.DATA.pnpkey4sourcename = lookup.label
 															self.logVerbose('PnP/Key 4 Source Name: ' + lookup.label)
+														}
+													} else if (param2 == '18') {
+														if (param3 == '00') {
+															//transition type+mix+wipe+direction 4-byte block, or single-byte type notification
+															const block = self._parseHexBlock(value, 4)
+															if (block) {
+																self.DATA.transitiontype = parseInt(block[0], 16)
+																self.DATA.mixtype = parseInt(block[1], 16)
+																self.DATA.wipetype = parseInt(block[2], 16)
+																self.DATA.wipedirection = parseInt(block[3], 16)
+																self.logVerbose(
+																	'Received transition block: type=' +
+																		self.DATA.transitiontype +
+																		' mix=' +
+																		self.DATA.mixtype +
+																		' wipe=' +
+																		self.DATA.wipetype +
+																		' dir=' +
+																		self.DATA.wipedirection,
+																)
+															} else if (self._parseHexBlock(value, 1)) {
+																self.DATA.transitiontype = parseInt(value, 16)
+																self.logVerbose('Received Transition Type: ' + value)
+															} else {
+																self.log('warn', 'Unexpected value for transition data block: ' + value)
+															}
+														} else if (param3 == '01') {
+															//mix type notification
+															if (self._parseHexBlock(value, 1)) {
+																self.DATA.mixtype = parseInt(value, 16)
+																self.logVerbose('Received Mix Type: ' + value)
+															} else {
+																self.log('warn', 'Unexpected value for mix type: ' + value)
+															}
+														} else if (param3 == '02') {
+															//wipe type notification
+															if (self._parseHexBlock(value, 1)) {
+																self.DATA.wipetype = parseInt(value, 16)
+																self.logVerbose('Received Wipe Type: ' + value)
+															} else {
+																self.log('warn', 'Unexpected value for wipe type: ' + value)
+															}
+														} else if (param3 == '03') {
+															//wipe direction notification
+															if (self._parseHexBlock(value, 1)) {
+																self.DATA.wipedirection = parseInt(value, 16)
+																self.logVerbose('Received Wipe Direction: ' + value)
+															} else {
+																self.log('warn', 'Unexpected value for wipe direction: ' + value)
+															}
 														}
 													} else {
 														//other data
