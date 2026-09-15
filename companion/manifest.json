@@ -3,7 +3,7 @@
 	"name": "roland-v160hd",
 	"shortname": "v160hd",
 	"description": "",
-	"version": "0.0.0",
+	"version": "2.2.1-pr4",
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-module-roland-v160hd.git",
 	"bugs": "https://github.com/bitfocus/companion-module-roland-v160hd/issues",
