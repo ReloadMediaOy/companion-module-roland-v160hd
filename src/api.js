@@ -842,6 +842,7 @@ module.exports = {
 					}
 
 					//now update feedbacks and variables
+					self.log('debug', '[AUX-DIAG] pre-checkFeedbacks: aux1source=' + self.DATA.aux1source + ' aux2source=' + self.DATA.aux2source + ' aux3source=' + self.DATA.aux3source)
 					self.checkFeedbacks()
 					self.checkVariables()
 				}
