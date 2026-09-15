@@ -1,6 +1,6 @@
 {
 	"name": "roland-v160hd",
-	"version": "2.2.1-pr4.1",
+	"version": "2.2.1-pr4.2",
 	"main": "index.js",
 	"scripts": {
 		"test": "node --test",
