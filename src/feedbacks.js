@@ -90,7 +90,13 @@ module.exports = {
 			callback: function (feedback, bank) {
 				let opt = feedback.options
 
-				//implement
+				let dataValue
+				if (opt.aux == 'aux1') dataValue = self.DATA.aux1source
+				else if (opt.aux == 'aux2') dataValue = self.DATA.aux2source
+				else if (opt.aux == 'aux3') dataValue = self.DATA.aux3source
+				const match = dataValue == opt.assign
+				self.log('debug', '[AUX-DIAG] auxTally callback: opt.aux=' + opt.aux + ' opt.assign=' + opt.assign + ' DATA=' + dataValue + ' match=' + match)
+
 				if (opt.aux == 'aux1') {
 					if (self.DATA.aux1source == opt.assign) {
 						return true
