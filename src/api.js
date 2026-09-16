@@ -204,11 +204,23 @@ module.exports = {
 			self.getPinpKeySource()
 			self.getFreezeData()
 			self.getOutputData()
+			self.getVideoAssign()
 			self.getAuxLinkData()
 			self.getTransitionData()
 			self.getMonitorData()
 			self.getLastMemoryLoaded()
 		}
+	},
+
+	_resolveInputToPhysical: function (rawId) {
+		// If rawId is a logical INPUT source (20–33), return the physical source
+		// currently assigned to that input. Falls back to rawId if not yet known.
+		const code = parseInt(rawId, 16)
+		if (code >= 0x20 && code <= 0x33 && Array.isArray(this.DATA.inputAssign)) {
+			const physical = this.DATA.inputAssign[code - 0x20]
+			if (physical !== undefined) return physical
+		}
+		return rawId.toUpperCase()
 	},
 
 	_parseHexBlock: function (value, expectedBytes) {
@@ -275,6 +287,15 @@ module.exports = {
 
 		// HDMI 1–3 + SDI 1–3 + USB are consecutive (00000A–000010): one 7-byte block.
 		self.sendRawCommand('RQH:00000A,000007;')
+	},
+
+	getVideoAssign: function () {
+		let self = this
+
+		// INPUT 1–10 video assign: registers 000000–000009 (10 bytes).
+		self.sendRawCommand('RQH:000000,00000A;')
+		// INPUT 11–20 video assign: registers 000024–00002D (10 bytes).
+		self.sendRawCommand('RQH:000024,00000A;')
 	},
 
 	getAuxLinkData: function () {
@@ -587,6 +608,34 @@ module.exports = {
 																self.log('warn', 'Unexpected value for wipe direction: ' + value)
 															}
 														}
+													} else if (param2 == '00' && param3 == '00') {
+														// INPUT 1–10 video assign (10-byte block) or single-byte INPUT 1 notification
+														const blockVA1 = self._parseHexBlock(value, 10)
+														if (blockVA1) {
+															if (!Array.isArray(self.DATA.inputAssign)) self.DATA.inputAssign = new Array(20).fill(undefined)
+															for (let i = 0; i < 10; i++) self.DATA.inputAssign[i] = blockVA1[i]
+															self.logVerbose('Received INPUT 1–10 Video Assign: ' + value)
+														} else if (self._parseHexBlock(value, 1)) {
+															if (!Array.isArray(self.DATA.inputAssign)) self.DATA.inputAssign = new Array(20).fill(undefined)
+															self.DATA.inputAssign[0] = value.toUpperCase()
+															self.logVerbose('Received INPUT 1 Video Assign: ' + value)
+														} else {
+															self.log('warn', 'Unexpected DTH value at 000000: ' + value)
+														}
+													} else if (param2 == '00' && param3 == '24') {
+														// INPUT 11–20 video assign (10-byte block) or single-byte INPUT 11 notification
+														const blockVA2 = self._parseHexBlock(value, 10)
+														if (blockVA2) {
+															if (!Array.isArray(self.DATA.inputAssign)) self.DATA.inputAssign = new Array(20).fill(undefined)
+															for (let i = 0; i < 10; i++) self.DATA.inputAssign[10 + i] = blockVA2[i]
+															self.logVerbose('Received INPUT 11–20 Video Assign: ' + value)
+														} else if (self._parseHexBlock(value, 1)) {
+															if (!Array.isArray(self.DATA.inputAssign)) self.DATA.inputAssign = new Array(20).fill(undefined)
+															self.DATA.inputAssign[10] = value.toUpperCase()
+															self.logVerbose('Received INPUT 11 Video Assign: ' + value)
+														} else {
+															self.log('warn', 'Unexpected DTH value at 000024: ' + value)
+														}
 													} else {
 														//other data
 														self.DATA[`data_${param1}${param2}${param3}`] = value
@@ -842,7 +891,6 @@ module.exports = {
 					}
 
 					//now update feedbacks and variables
-					self.log('debug', '[AUX-DIAG] pre-checkFeedbacks: aux1source=' + self.DATA.aux1source + ' aux2source=' + self.DATA.aux2source + ' aux3source=' + self.DATA.aux3source)
 					self.checkFeedbacks()
 					self.checkVariables()
 				}
