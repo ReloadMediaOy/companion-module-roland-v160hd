@@ -10,6 +10,9 @@ module.exports = {
 			variables.push({ variableId: 'tally_' + self.TALLYDATA[i].shortlabel, name: self.TALLYDATA[i].label + ' Tally' })
 		}
 
+		variables.push({ variableId: 'pgm_source', name: 'PGM Current Source' })
+		variables.push({ variableId: 'pvw_source', name: 'PVW Current Source' })
+
 		variables.push({ variableId: 'pnpkey1_pgm', name: 'PnP/Key 1 on PGM' })
 		variables.push({ variableId: 'pnpkey1_pvw', name: 'PnP/Key 1 on PVW' })
 		variables.push({ variableId: 'pnpkey2_pgm', name: 'PnP/Key 2 on PGM' })
@@ -162,6 +165,26 @@ module.exports = {
 				variableObj.usb = usbassign.label
 			} else {
 				variableObj.usb = self.DATA.usbassign
+			}
+
+			//PGM/PVW Sources
+			let pgmSource = self.CHOICES_PGMPVW_SELECT.find((item) => {
+				return item.id == self.DATA.pgmsource
+			})
+			let pvwSource = self.CHOICES_PGMPVW_SELECT.find((item) => {
+				return item.id == self.DATA.pvwsource
+			})
+
+			if (pgmSource !== undefined) {
+				variableObj.pgm_source = pgmSource.label
+			} else {
+				variableObj.pgm_source = self.DATA.pgmsource
+			}
+
+			if (pvwSource !== undefined) {
+				variableObj.pvw_source = pvwSource.label
+			} else {
+				variableObj.pvw_source = self.DATA.pvwsource
 			}
 
 			//Aux Sources
