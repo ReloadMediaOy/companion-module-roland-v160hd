@@ -90,28 +90,25 @@ module.exports = {
 			callback: function (feedback, bank) {
 				let opt = feedback.options
 
-				let dataValue
-				if (opt.aux == 'aux1') dataValue = self.DATA.aux1source
-				else if (opt.aux == 'aux2') dataValue = self.DATA.aux2source
-				else if (opt.aux == 'aux3') dataValue = self.DATA.aux3source
-				const match = dataValue == opt.assign
-				self.log('debug', '[AUX-DIAG] auxTally callback: opt.aux=' + opt.aux + ' opt.assign=' + opt.assign + ' DATA=' + dataValue + ' match=' + match)
+				let rawSource
+				if (opt.aux == 'aux1') rawSource = self.DATA.aux1source
+				else if (opt.aux == 'aux2') rawSource = self.DATA.aux2source
+				else if (opt.aux == 'aux3') rawSource = self.DATA.aux3source
 
-				if (opt.aux == 'aux1') {
-					if (self.DATA.aux1source == opt.assign) {
-						return true
-					}
-				}
+				if (rawSource == null || rawSource === undefined) return false
 
-				if (opt.aux == 'aux2') {
-					if (self.DATA.aux2source == opt.assign) {
-						return true
-					}
-				}
+				const raw = rawSource.toUpperCase()
+				const target = opt.assign.toUpperCase()
 
-				if (opt.aux == 'aux3') {
-					if (self.DATA.aux3source == opt.assign) {
-						return true
+				if (raw === target) return true
+
+				// Physical target (HDMI/SDI/STILL: 00–1F): also match via INPUT assignment
+				const targetCode = parseInt(target, 16)
+				if (targetCode <= 0x1f) {
+					const srcCode = parseInt(raw, 16)
+					if (srcCode >= 0x20 && srcCode <= 0x33) {
+						const physical = self._resolveInputToPhysical(raw)
+						if (physical !== raw && physical.toUpperCase() === target) return true
 					}
 				}
 
