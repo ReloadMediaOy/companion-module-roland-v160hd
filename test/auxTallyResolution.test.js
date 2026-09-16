@@ -25,7 +25,9 @@ if (baseResolved) {
 
 const api = require('../src/api')
 const feedbacksDef = require('../src/feedbacks')
+const actionsDef = require('../src/actions')
 const constants = require('../src/constants')
+const { extractMessages } = require('../src/tcpParser')
 
 // Build a module instance stub and capture the auxTally callback via setFeedbackDefinitions.
 function makeInstance(dataOverrides) {
@@ -205,5 +207,174 @@ describe('getVideoAssign RQH commands', () => {
 		assert.ok(cmds.some((c) => c.includes('RQH:000000,00000A')), 'INPUT 1–10 query')
 		assert.ok(cmds.some((c) => c.includes('RQH:000024,00000A')), 'INPUT 11–20 query')
 		assert.equal(cmds.length, 2)
+	})
+})
+
+// ── Individual VIDEO ASSIGN DTH notifications ────────────────────────────────
+
+describe('VIDEO ASSIGN individual DTH notifications', () => {
+	test('INPUT 1 individual notification (000000, 1-byte)', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		feedDTH(self, 'DTH:000000,03')
+		assert.equal(self.DATA.inputAssign[0], '03')
+	})
+
+	test('INPUT 6 individual notification (000005)', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		feedDTH(self, 'DTH:000005,07')
+		assert.equal(self.DATA.inputAssign[5], '07')
+	})
+
+	test('INPUT 10 individual notification (000009)', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		feedDTH(self, 'DTH:000009,0A')
+		assert.equal(self.DATA.inputAssign[9], '0A')
+	})
+
+	test('INPUT 11 individual notification (000024)', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		feedDTH(self, 'DTH:000024,05')
+		assert.equal(self.DATA.inputAssign[10], '05')
+	})
+
+	test('INPUT 16 individual notification (000029)', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		feedDTH(self, 'DTH:000029,0A')
+		assert.equal(self.DATA.inputAssign[15], '0A')
+	})
+
+	test('INPUT 20 individual notification (00002D)', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		feedDTH(self, 'DTH:00002D,0F')
+		assert.equal(self.DATA.inputAssign[19], '0F')
+	})
+
+	test('individual notifications do not disturb sibling slots', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		feedDTH(self, 'DTH:000000,' + '05'.repeat(10)) // set all INPUT 1-10 → HDMI 6
+		feedDTH(self, 'DTH:000005,07') // change INPUT 6 → HDMI 8
+		assert.equal(self.DATA.inputAssign[5], '07', 'INPUT 6 updated')
+		assert.equal(self.DATA.inputAssign[4], '05', 'INPUT 5 unchanged')
+		assert.equal(self.DATA.inputAssign[6], '05', 'INPUT 7 unchanged')
+	})
+
+	test('malformed individual notification does not overwrite previous value', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		feedDTH(self, 'DTH:000005,07')
+		assert.equal(self.DATA.inputAssign[5], '07')
+		feedDTH(self, 'DTH:000005,ZZ') // invalid hex
+		assert.equal(self.DATA.inputAssign[5], '07', 'slot unchanged after malformed')
+	})
+
+	test('INPUT 11–20 individual notifications do not disturb INPUT 1–10', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		feedDTH(self, 'DTH:000000,' + '00'.repeat(10)) // INPUT 1-10 → HDMI 1
+		feedDTH(self, 'DTH:000029,0A') // INPUT 16 → SDI 3
+		assert.equal(self.DATA.inputAssign[0], '00', 'INPUT 1 unchanged')
+		assert.equal(self.DATA.inputAssign[15], '0A', 'INPUT 16 updated')
+	})
+})
+
+// ── Production parser path (extractMessages → updateData) ────────────────────
+
+describe('VIDEO ASSIGN — production parser path', () => {
+	test('10-byte block reaches inputAssign via extractMessages', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		const raw = 'DTH:000000,00010203040506070809;'
+		const { messages } = extractMessages(raw)
+		assert.equal(messages.length, 1)
+		api.updateData.call(self, messages[0])
+		assert.deepEqual(self.DATA.inputAssign.slice(0, 10), ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09'])
+	})
+
+	test('individual DTH notification reaches inputAssign via extractMessages', () => {
+		const self = { ...makeInstance(), sendRawCommand: () => {} }
+		const raw = 'DTH:000005,07;'
+		const { messages } = extractMessages(raw)
+		assert.equal(messages.length, 1)
+		api.updateData.call(self, messages[0])
+		assert.equal(self.DATA.inputAssign[5], '07')
+	})
+})
+
+// ── input_assign action — optimistic cache update ────────────────────────────
+
+function makeActionInstance(dataOverrides) {
+	const self = {
+		config: { verbose: false },
+		DATA: Object.assign({ inputAssign: new Array(20).fill(undefined) }, dataOverrides || {}),
+		log: () => {},
+		logVerbose: () => {},
+		setVariableValues: () => {},
+		checkFeedbacks: () => {},
+		checkVariables: () => {},
+		TALLYDATA: constants.TALLYDATA.map((t) => Object.assign({}, t)),
+		...Object.fromEntries(Object.entries(constants).filter(([k]) => k.startsWith('CHOICES_'))),
+		CHOICES_OUTPUTSASSIGN: constants.CHOICES_OUTPUTSASSIGN || [{ id: '00', label: 'Placeholder' }],
+		_parseHexBlock: api._parseHexBlock,
+		_resolveInputToPhysical: api._resolveInputToPhysical,
+		sendCommand: () => {},
+		sendRawCommand: () => {},
+	}
+
+	let inputAssignCallback
+	self.setFeedbackDefinitions = (defs) => {}
+	self.setActionDefinitions = (defs) => {
+		inputAssignCallback = defs.input_assign && defs.input_assign.callback
+	}
+	actionsDef.initActions.call(self)
+	self._inputAssign = inputAssignCallback
+
+	// Also capture auxTally
+	let auxTallyCallback
+	const feedSelf = Object.assign({}, self, {
+		setFeedbackDefinitions: (defs) => { auxTallyCallback = defs.auxTally.callback },
+	})
+	feedbacksDef.initFeedbacks.call(feedSelf)
+	// Share the DATA object so action changes are visible to feedback
+	self._auxTally = (aux, assign) => auxTallyCallback.call(feedSelf, { options: { aux, assign } }, {})
+	// Keep feedSelf DATA in sync
+	Object.defineProperty(feedSelf, 'DATA', { get: () => self.DATA })
+
+	return self
+}
+
+describe('input_assign action — optimistic cache update', () => {
+	test('INPUT 6 assignment immediately updates DATA.inputAssign[5]', () => {
+		const self = makeActionInstance()
+		// options.input=5 (INPUT 6), options.assign=5 (HDMI 6 = id 5 in CHOICES_INPUTSASSIGN)
+		self._inputAssign({ options: { input: 5, assign: 5 } }, {})
+		assert.equal(self.DATA.inputAssign[5], '05')
+	})
+
+	test('optimistic update makes HDMI 6 AUX tally true when aux1=INPUT 6', () => {
+		const self = makeActionInstance({ aux1source: '25' }) // AUX 1 = INPUT 6
+		// Before: no assignment known
+		assert.equal(self._auxTally('aux1', '05'), false, 'before: HDMI 6 false')
+		// Assign INPUT 6 → HDMI 6
+		self._inputAssign({ options: { input: 5, assign: 5 } }, {})
+		assert.equal(self._auxTally('aux1', '05'), true, 'after: HDMI 6 true via optimistic update')
+	})
+
+	test('INPUT-targeted feedback stays exact/raw after action optimistic update', () => {
+		const self = makeActionInstance({ aux1source: '05' }) // AUX 1 = HDMI 6 directly
+		// Even if inputAssign maps INPUT 6 to HDMI 6, INPUT 6 feedback must NOT match HDMI 6 raw source
+		self._inputAssign({ options: { input: 5, assign: 5 } }, {})
+		assert.equal(self._auxTally('aux1', '25'), false, 'INPUT 6 feedback must not match HDMI 6 raw source')
+		assert.equal(self._auxTally('aux1', '05'), true, 'HDMI 6 direct match still works')
+	})
+
+	test('subsequent hardware DTH overwrites optimistic cache', () => {
+		const self = makeActionInstance({ aux1source: '25' })
+		// Optimistic: INPUT 6 → HDMI 6
+		self._inputAssign({ options: { input: 5, assign: 5 } }, {})
+		assert.equal(self.DATA.inputAssign[5], '05')
+		assert.equal(self._auxTally('aux1', '05'), true)
+
+		// Hardware confirms different value (e.g. SDI 1 = 08)
+		api.updateData.call(self, 'DTH:000005,08;')
+		assert.equal(self.DATA.inputAssign[5], '08', 'cache updated by hardware DTH')
+		assert.equal(self._auxTally('aux1', '05'), false, 'HDMI 6 now false')
+		assert.equal(self._auxTally('aux1', '08'), true, 'SDI 1 now true')
 	})
 })
