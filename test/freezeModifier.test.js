@@ -77,6 +77,7 @@ const api = require('../src/api')
 const actions = require('../src/actions')
 const feedbacks = require('../src/feedbacks')
 const variables = require('../src/variables')
+const presets = require('../src/presets')
 const constants = require('../src/constants')
 const { extractMessages } = require('../src/tcpParser')
 
@@ -718,7 +719,19 @@ describe('connection lifecycle — the Set Freeze modifier is untouched by conne
 		)
 	})
 
-	test('a config update (configUpdated-equivalent: initActions/initFeedbacks/initVariables re-run) does not reset the modifier flag', () => {
+	test('a REAL configUpdated() call — real initActions/initFeedbacks/initVariables/initPresets, network-isolated — does not reset the modifier flag: the registered feedback returns true and the published freeze_select_mode is Active', () => {
+		// lifecycleHarness's own createEnvironment() deliberately does not
+		// load actions/feedbacks/variables/presets/constants (irrelevant to
+		// most lifecycle tests — see the harness's own comment), so
+		// env.self.configUpdated() would otherwise throw calling
+		// this.initActions() etc. Merge in the REAL modules (this file's
+		// own top-level requires — the same production code the other
+		// describe blocks already exercise) so the real configUpdated()
+		// can actually run end to end. initConnection() at the end of
+		// configUpdated() still runs through the SAME fake-socket/virtual-
+		// clock TCPHelper machinery createEnvironment() already set up —
+		// no real network connection is ever opened, here or anywhere else
+		// in this test.
 		const env = createEnvironment()
 		env.self.initConnection()
 		env.advance()
@@ -726,13 +739,43 @@ describe('connection lifecycle — the Set Freeze modifier is untouched by conne
 		env.advance(50)
 
 		env.self.freeze_select_mode = true
-		// This harness does not load actions/feedbacks/variables (see
-		// lifecycleHarness.js) — simulate the part of configUpdated() that
-		// matters here: nothing in that method touches freeze_select_mode,
-		// confirmed directly against index.js's own configUpdated().
-		env.self.config = Object.assign({}, env.self.config)
+		Object.assign(env.self, actions, feedbacks, variables, presets, constants)
 
-		assert.equal(env.self.freeze_select_mode, true)
+		let feedbackDefs = null
+		const variablePublishes = []
+		env.self.setActionDefinitions = () => {}
+		env.self.setFeedbackDefinitions = (f) => {
+			feedbackDefs = f
+		}
+		env.self.setVariableDefinitions = () => {}
+		env.self.setPresetDefinitions = () => {}
+		env.self.setVariableValues = (obj) => variablePublishes.push(obj)
+		// checkFeedbacks itself is a Companion-SDK method (not part of any
+		// src/ module) — the harness's own no-op stub is fine for this
+		// test's purposes: the registered feedback's own callback is
+		// evaluated directly below, against the REAL feedbackDefs that
+		// initFeedbacks() just registered.
+		env.self.checkFeedbacks = () => {}
+
+		env.self.configUpdated(env.self.config)
+		env.advance()
+
+		assert.equal(env.self.freeze_select_mode, true, 'the modifier survives a real configUpdated() call')
+		assert.ok(
+			feedbackDefs && feedbackDefs.freeze_select_mode_active,
+			'the real initFeedbacks() actually registered freeze_select_mode_active',
+		)
+		assert.equal(
+			feedbackDefs.freeze_select_mode_active.callback({ options: {} }, {}),
+			true,
+			"the registered feedback's own real callback returns true",
+		)
+		assert.ok(variablePublishes.length > 0, "the real checkVariables() (called inside configUpdated()) published something")
+		assert.equal(
+			variablePublishes.at(-1).freeze_select_mode,
+			'Active',
+			'the real published freeze_select_mode variable is Active',
+		)
 	})
 
 	test('destroy() does not reset or otherwise touch the modifier flag', async () => {
