@@ -762,7 +762,11 @@ describe('full chain — freezeSwitchSelectEnableDisable: real action -> real pe
 		// never re-publishes a feedback for input 0B when only 0A was
 		// written — this proves the callback itself is correctly scoped
 		// per-input, independent of when/whether it gets re-checked.
-		assert.equal(chain.directCallback('freeze_input_selected', { input: '0B' }), false, 'a neighboring input is unaffected')
+		assert.equal(
+			chain.directCallback('freeze_input_selected', { input: '0B' }),
+			false,
+			'a neighboring input is unaffected',
+		)
 		assert.equal(chain.variablePublishes.at(-1).freeze_select_sdi1, 'Enabled', 'address 0A -> sdi1')
 		assert.equal(chain.variablePublishes.at(-1).freeze_select_sdi2, 'Disabled', 'address 0B -> sdi2, unaffected')
 	})
@@ -784,7 +788,11 @@ describe('full chain — freezeSwitchSelectEnableDisable: real action -> real pe
 				chain.feedbackHistory.length > historyLenBefore,
 				'expiry triggers a further, real checkFeedbacks("freeze_input_selected") call — the specific gap this finding named',
 			)
-			assert.equal(chain.lastFeedbackValue('freeze_input_selected'), false, 'back to Disabled (DATA), recorded at that real call')
+			assert.equal(
+				chain.lastFeedbackValue('freeze_input_selected'),
+				false,
+				'back to Disabled (DATA), recorded at that real call',
+			)
 			assert.equal(chain.variablePublishes.at(-1).freeze_select_hdmi1, 'Disabled')
 		})
 	})
@@ -888,13 +896,24 @@ describe('connection lifecycle — multiple Freeze fields pending across replace
 		authenticate(env)
 		env.advance(50)
 
-		env.self._setFreezePending('freeze', '01', () => {})
-		env.self._setFreezePending('freeze_type', '01', () => {})
-		env.self._setFreezePending('freeze_select_11', '01', () => {})
-
 		simulateError(env.helpers[0], 'ECONNRESET')
 		env.advance(30000) // TCPHelper's own built-in reconnect — no initConnection() call
 		assert.equal(env.helpers.length, 1, 'the same TCPHelper instance is reused for this reconnect, not a replacement')
+
+		// Per FREEZE-TYPE-SELECT-FOLLOWUP-REVIEW.md finding 2: these must be
+		// set fresh here, right before simulateReady — not earlier, before
+		// the 30000ms advance above. Each pending's own 2000ms deadline
+		// would otherwise elapse during that advance, so their being gone
+		// afterward would prove nothing about the 'connect' handler; it
+		// would already be true from ordinary expiry alone, ~28s earlier.
+		env.self._setFreezePending('freeze', '01', () => {})
+		env.self._setFreezePending('freeze_type', '01', () => {})
+		env.self._setFreezePending('freeze_select_11', '01', () => {})
+		assert.equal(
+			Object.keys(env.self._freezePending).length,
+			3,
+			'sanity: all three are still genuinely pending immediately before the reconnect — none have expired',
+		)
 
 		const feedbackCalls = []
 		const variableCalls = []
@@ -911,7 +930,10 @@ describe('connection lifecycle — multiple Freeze fields pending across replace
 		const namedTypes = feedbackCalls.flat()
 		assert.ok(namedTypes.includes('freeze'), "the 'connect' handler alone requests a freeze refresh")
 		assert.ok(namedTypes.includes('freeze_type_select'), "the 'connect' handler alone requests freeze_type_select")
-		assert.ok(namedTypes.includes('freeze_input_selected'), "the 'connect' handler alone requests freeze_input_selected")
+		assert.ok(
+			namedTypes.includes('freeze_input_selected'),
+			"the 'connect' handler alone requests freeze_input_selected",
+		)
 		assert.ok(variableCalls.length > 0, "the 'connect' handler alone requests a variables refresh")
 	})
 
@@ -986,7 +1008,7 @@ describe('connection lifecycle — multiple Freeze fields pending across replace
 			assert.equal(
 				env.self._freezeValue('freeze_select_0A'),
 				'FALLBACK',
-				"the pending value still expires normally at its own deadline — the rejected send did not somehow freeze or extend it",
+				'the pending value still expires normally at its own deadline — the rejected send did not somehow freeze or extend it',
 			)
 		} finally {
 			process.removeListener('unhandledRejection', onUnhandled)
