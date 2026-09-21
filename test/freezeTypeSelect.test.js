@@ -39,7 +39,7 @@
 
 const { test, describe } = require('node:test')
 const assert = require('node:assert/strict')
-const { createEnvironment, authenticate, simulateReady } = require('../test-support/lifecycleHarness')
+const { createEnvironment, authenticate, simulateReady, simulateError } = require('../test-support/lifecycleHarness')
 const { withCapturedTimers } = require('../test-support/capturedTimers')
 
 // ── Module stubs (mirrors test/smallCorrectnessFixtures.test.js) ────────────
@@ -594,12 +594,28 @@ describe('src/api.js — real parser path acknowledges freeze_type and freeze_se
 
 // ── 6. Full chain — real action -> pending -> real feedback/variable -> ────
 // ── real expiry, for freezeSwitchType and freezeSwitchSelectEnableDisable ──
+//
+// Per FREEZE-TYPE-SELECT-INDEPENDENT-REVIEW.md finding 1: an earlier
+// version of this harness counted checkFeedbacks calls by id, then
+// re-evaluated the feedback's callback in a SEPARATE, later statement. That
+// let two real mutations through undetected — removing just the Select
+// action's onExpire feedback refresh (while keeping checkVariables), and
+// moving Type's immediate checkFeedbacks call to before _setFreezePending
+// (reading the OLD value) — because the later, disconnected evaluation
+// always reflected current state regardless of whether/when the real
+// checkFeedbacks call happened. The fix: `checkFeedbacks` itself records
+// each feedback's callback RESULT at the moment it is actually called,
+// using the real per-call id filter (a bare call with no ids means "refresh
+// everything currently registered", matching real Companion/parser
+// semantics) and per-test "watched" options for feedbacks that take one
+// (freeze_input_selected). Tests read that history, not a fresh evaluation.
 
 function makeFreezeChainSelf(connected) {
 	const sent = []
 	const rawSent = []
-	const feedbackCallCount = {} // { [feedbackId]: number of times checkFeedbacks named it }
+	const feedbackHistory = [] // [{ type, options, value }], appended INSIDE checkFeedbacks, in call order
 	const variablePublishes = []
+	const watchedOptions = {} // { [feedbackId]: options } — which options an options-bearing feedback is evaluated with
 
 	let feedbackDefs = null
 	let actionDefs = null
@@ -622,7 +638,16 @@ function makeFreezeChainSelf(connected) {
 		},
 		setVariableValues: (obj) => variablePublishes.push(obj),
 		checkFeedbacks: function (...types) {
-			for (const type of types) feedbackCallCount[type] = (feedbackCallCount[type] || 0) + 1
+			// A bare call (no ids) is the parser's own end-of-message
+			// refresh — real Companion semantics re-check every registered
+			// feedback in that case, not just one.
+			const effectiveTypes = types.length ? types : Object.keys(feedbackDefs)
+			for (const type of effectiveTypes) {
+				const def = feedbackDefs[type]
+				if (!def) continue
+				const options = watchedOptions[type] || {}
+				feedbackHistory.push({ type, options, value: def.callback({ options }, {}) })
+			}
 		},
 	})
 	self.initFeedbacks()
@@ -634,19 +659,31 @@ function makeFreezeChainSelf(connected) {
 		actionDefs,
 		sent,
 		rawSent,
-		feedbackCallCount,
+		feedbackHistory,
 		variablePublishes,
-		// Evaluates a feedback's REAL, registered callback right now — used
-		// immediately after triggering an action or an expiry callback, i.e.
-		// at the same moment production code itself called checkFeedbacks,
-		// so this observes the value actually published at that update, not
-		// a value read once at the end of the test.
-		evalFeedback: (id, options) => feedbackDefs[id].callback({ options: options || {} }, {}),
+		watchFeedbackOptions: (type, options) => {
+			watchedOptions[type] = options
+		},
+		// The most recent value RECORDED for `type` in feedbackHistory — i.e.
+		// what was actually published the last time the real checkFeedbacks
+		// call included it, not a value derived after the fact.
+		lastFeedbackValue: (type) => {
+			for (let i = feedbackHistory.length - 1; i >= 0; i--) {
+				if (feedbackHistory[i].type === type) return feedbackHistory[i].value
+			}
+			return undefined
+		},
+		// Calls a feedback's real callback directly, bypassing checkFeedbacks
+		// entirely — ONLY for structural checks unrelated to update timing,
+		// such as proving a neighboring input's own value, which production
+		// never re-publishes when a DIFFERENT input is written. Never used as
+		// evidence of what was actually published at an update call.
+		directCallback: (type, options) => feedbackDefs[type].callback({ options: options || {} }, {}),
 	}
 }
 
 describe('full chain — freezeSwitchType: real action -> real pending -> real feedback/variable', () => {
-	test('DATA stays unchanged before any response, but the real freeze_type_select feedback and the real published freeze_type variable already show Select', () => {
+	test('DATA stays unchanged before any response, but the real checkFeedbacks call already published Select for freeze_type_select, and the real variable already shows Select', () => {
 		const chain = makeFreezeChainSelf(true)
 		chain.self.DATA.freeze_type = '00'
 
@@ -655,11 +692,11 @@ describe('full chain — freezeSwitchType: real action -> real pending -> real f
 		})
 
 		assert.equal(chain.self.DATA.freeze_type, '00', 'DATA is written only by the parser, never by the action')
-		assert.ok(
-			chain.feedbackCallCount.freeze_type_select >= 1,
-			'checkFeedbacks("freeze_type_select") was actually called',
+		assert.equal(
+			chain.lastFeedbackValue('freeze_type_select'),
+			true,
+			'the value recorded at the real checkFeedbacks("freeze_type_select") call already reports Select',
 		)
-		assert.equal(chain.evalFeedback('freeze_type_select'), true, 'the real feedback already reports Select')
 		assert.ok(chain.variablePublishes.length >= 1)
 		assert.equal(
 			chain.variablePublishes.at(-1).freeze_type,
@@ -675,16 +712,20 @@ describe('full chain — freezeSwitchType: real action -> real pending -> real f
 
 			chain.actionDefs.freezeSwitchType.callback({ options: { type: '01' } }, {})
 			const id = chain.self._freezePending.freeze_type.timer
-			assert.equal(chain.evalFeedback('freeze_type_select'), true, 'Select shown before expiry')
-			const countBefore = chain.feedbackCallCount.freeze_type_select
+			assert.equal(chain.lastFeedbackValue('freeze_type_select'), true, 'Select recorded before expiry')
+			const historyLenBefore = chain.feedbackHistory.length
 
 			timers.invoke(id)
 
 			assert.ok(
-				chain.feedbackCallCount.freeze_type_select > countBefore,
-				'expiry triggers a further checkFeedbacks call',
+				chain.feedbackHistory.length > historyLenBefore,
+				'expiry triggers a further, real checkFeedbacks call that records a new history entry',
 			)
-			assert.equal(chain.evalFeedback('freeze_type_select'), false, 'back to All (DATA) after expiry')
+			assert.equal(
+				chain.lastFeedbackValue('freeze_type_select'),
+				false,
+				'back to All (DATA), recorded at that real call',
+			)
 			assert.equal(chain.variablePublishes.at(-1).freeze_type, 'All')
 		})
 	})
@@ -696,28 +737,32 @@ describe('full chain — freezeSwitchType: real action -> real pending -> real f
 
 		assert.deepEqual(chain.sent, [{ addr: '020501', val: '01' }])
 		assert.equal(chain.self._freezePending.freeze_type, undefined)
-		assert.deepEqual(chain.feedbackCallCount, {})
+		assert.deepEqual(chain.feedbackHistory, [])
 		assert.deepEqual(chain.variablePublishes, [])
 	})
 })
 
 describe('full chain — freezeSwitchSelectEnableDisable: real action -> real pending -> real feedback/variable', () => {
-	test('DATA stays unchanged before any response, but the real freeze_input_selected feedback (for that exact input) and the real published per-input variable already show Enabled', () => {
+	test('DATA stays unchanged before any response, but the real checkFeedbacks call already published Enabled for the exact input, and the real published per-input variable already shows Enabled', () => {
 		const chain = makeFreezeChainSelf(true)
 		chain.self.DATA.freeze_select_0A = '00'
+		chain.watchFeedbackOptions('freeze_input_selected', { input: '0A' })
 
 		withCapturedTimers(() => {
 			chain.actionDefs.freezeSwitchSelectEnableDisable.callback({ options: { input: '0A', enable: '01' } }, {})
 		})
 
 		assert.equal(chain.self.DATA.freeze_select_0A, '00')
-		assert.ok(chain.feedbackCallCount.freeze_input_selected >= 1)
-		assert.equal(chain.evalFeedback('freeze_input_selected', { input: '0A' }), true, 'the exact input reports Enabled')
 		assert.equal(
-			chain.evalFeedback('freeze_input_selected', { input: '0B' }),
-			false,
-			'a neighboring input is unaffected',
+			chain.lastFeedbackValue('freeze_input_selected'),
+			true,
+			'the value recorded at the real checkFeedbacks("freeze_input_selected") call already reports Enabled, for input 0A specifically (watched above)',
 		)
+		// Structural check only, not update-timing evidence: production
+		// never re-publishes a feedback for input 0B when only 0A was
+		// written — this proves the callback itself is correctly scoped
+		// per-input, independent of when/whether it gets re-checked.
+		assert.equal(chain.directCallback('freeze_input_selected', { input: '0B' }), false, 'a neighboring input is unaffected')
 		assert.equal(chain.variablePublishes.at(-1).freeze_select_sdi1, 'Enabled', 'address 0A -> sdi1')
 		assert.equal(chain.variablePublishes.at(-1).freeze_select_sdi2, 'Disabled', 'address 0B -> sdi2, unaffected')
 	})
@@ -726,18 +771,20 @@ describe('full chain — freezeSwitchSelectEnableDisable: real action -> real pe
 		withCapturedTimers((timers) => {
 			const chain = makeFreezeChainSelf(true)
 			chain.self.DATA.freeze_select_02 = '00'
+			chain.watchFeedbackOptions('freeze_input_selected', { input: '02' })
 
 			chain.actionDefs.freezeSwitchSelectEnableDisable.callback({ options: { input: '02', enable: '01' } }, {})
 			const id = chain.self._freezePending.freeze_select_02.timer
-			assert.equal(chain.evalFeedback('freeze_input_selected', { input: '02' }), true)
+			assert.equal(chain.lastFeedbackValue('freeze_input_selected'), true, 'Enabled recorded before expiry')
+			const historyLenBefore = chain.feedbackHistory.length
 
 			timers.invoke(id)
 
-			assert.equal(
-				chain.evalFeedback('freeze_input_selected', { input: '02' }),
-				false,
-				'back to Disabled (DATA) after expiry',
+			assert.ok(
+				chain.feedbackHistory.length > historyLenBefore,
+				'expiry triggers a further, real checkFeedbacks("freeze_input_selected") call — the specific gap this finding named',
 			)
+			assert.equal(chain.lastFeedbackValue('freeze_input_selected'), false, 'back to Disabled (DATA), recorded at that real call')
 			assert.equal(chain.variablePublishes.at(-1).freeze_select_hdmi1, 'Disabled')
 		})
 	})
@@ -748,7 +795,7 @@ describe('full chain — freezeSwitchSelectEnableDisable: real action -> real pe
 
 		assert.deepEqual(chain.sent, [{ addr: '020511', val: '01' }])
 		assert.equal(chain.self._freezePending.freeze_select_11, undefined)
-		assert.deepEqual(chain.feedbackCallCount, {})
+		assert.deepEqual(chain.feedbackHistory, [])
 	})
 
 	test('the real single-byte parser response for one input clears only that field, leaving a concurrently pending different input untouched', () => {
@@ -819,29 +866,53 @@ describe('connection lifecycle — multiple Freeze fields pending across replace
 		assert.ok(variableCalls.length > 0)
 	})
 
-	test("a fresh 'connect' (reconnect via the same or a replacement TCPHelper) clears all three fields and refreshes the same three feedback ids", () => {
+	test("a reconnect via the SAME TCPHelper instance (TCPHelper's own built-in retry, no initConnection() call at all) clears all three fields and refreshes the same three feedback ids — isolated from initConnection()'s own teardown-time call", () => {
+		// Per FREEZE-TYPE-SELECT-INDEPENDENT-REVIEW.md finding 2: an earlier
+		// version of this test called initConnection() again to simulate a
+		// reconnect, which itself ALSO clears pending and calls
+		// checkFeedbacks (that is what the "replacement" test above already
+		// covers) — so a mutation restricting ONLY the 'connect' handler's
+		// own call back to 'freeze' still passed, since the earlier
+		// initConnection()-teardown call (from the SAME test) had already
+		// supplied the correct ids into the same recorded array. TCPHelper's
+		// own `reconnect_interval` option (see src/api.js initConnection)
+		// retries automatically after an error WITHOUT the module calling
+		// initConnection() again — only the 'connect' handler fires. Using
+		// that path here, and starting to record checkFeedbacks calls only
+		// AFTER the error (right before the reconnect's own 'connect'),
+		// isolates this test to the 'connect' handler's own call, in
+		// isolation from initConnection()'s.
 		const env = createEnvironment()
 		env.self.initConnection()
 		env.advance()
 		authenticate(env)
 		env.advance(50)
 
-		const feedbackCalls = []
-		env.self.checkFeedbacks = (...types) => feedbackCalls.push(types)
-		env.self.checkVariables = () => {}
-
 		env.self._setFreezePending('freeze', '01', () => {})
 		env.self._setFreezePending('freeze_type', '01', () => {})
 		env.self._setFreezePending('freeze_select_11', '01', () => {})
 
-		env.self.initConnection()
-		env.advance()
-		simulateReady(env.helpers[env.helpers.length - 1])
+		simulateError(env.helpers[0], 'ECONNRESET')
+		env.advance(30000) // TCPHelper's own built-in reconnect — no initConnection() call
+		assert.equal(env.helpers.length, 1, 'the same TCPHelper instance is reused for this reconnect, not a replacement')
 
-		assert.equal(Object.keys(env.self._freezePending).length, 0)
+		const feedbackCalls = []
+		const variableCalls = []
+		env.self.checkFeedbacks = (...types) => feedbackCalls.push(types)
+		env.self.checkVariables = () => variableCalls.push(true)
+
+		simulateReady(env.helpers[0])
+
+		assert.equal(
+			Object.keys(env.self._freezePending).length,
+			0,
+			"the 'connect' handler alone (not initConnection()) clears every pending field",
+		)
 		const namedTypes = feedbackCalls.flat()
-		assert.ok(namedTypes.includes('freeze_type_select'))
-		assert.ok(namedTypes.includes('freeze_input_selected'))
+		assert.ok(namedTypes.includes('freeze'), "the 'connect' handler alone requests a freeze refresh")
+		assert.ok(namedTypes.includes('freeze_type_select'), "the 'connect' handler alone requests freeze_type_select")
+		assert.ok(namedTypes.includes('freeze_input_selected'), "the 'connect' handler alone requests freeze_input_selected")
+		assert.ok(variableCalls.length > 0, "the 'connect' handler alone requests a variables refresh")
 	})
 
 	test('destroy() with freeze, freeze_type, and two Select fields pending: every timer is cancelled, no consumer update happens after destroy()', async () => {
@@ -870,14 +941,14 @@ describe('connection lifecycle — multiple Freeze fields pending across replace
 		assert.deepEqual(variableCalls, [], 'destroy() itself triggers no variable refresh')
 	})
 
-	test('a rejected send for a new Freeze write (Select) does not escape as an unhandledRejection, and the pending value set alongside it still expires normally', async () => {
+	test('a rejected send for a new Freeze write (Select) does not escape as an unhandledRejection, does not corrupt the pending value set alongside it, and that pending value still expires normally at its own 2000ms deadline', async () => {
 		// Mirrors connectionLifecycle.test.js's own rejected-send scenario
 		// (a destroyed underlying socket, so isConnected stays true — see
 		// that file's harness comment for why), but through a Select
 		// address/value pair and with a pending value set at the same time
 		// an action would set one, proving the two are independent: a
-		// failed send does not prevent or corrupt the pending overlay, and
-		// the pending overlay does not depend on the send having succeeded.
+		// failed send does not prevent, corrupt, or otherwise affect the
+		// pending overlay's own lifecycle, including its normal expiry.
 		const env = createEnvironment()
 		const rejections = []
 		const onUnhandled = (err) => rejections.push(err)
@@ -892,6 +963,7 @@ describe('connection lifecycle — multiple Freeze fields pending across replace
 			helper._socket.destroyed = true
 			assert.equal(helper.isConnected, true, 'isConnected is unaffected — matches the real TCPHelper')
 
+			env.self.DATA.freeze_select_0A = 'FALLBACK'
 			env.self._setFreezePending('freeze_select_0A', '01', () => {})
 			env.self.sendCommand('02050A', '01')
 			env.self.sendRawCommand('RQH:02050A,000001;')
@@ -902,12 +974,19 @@ describe('connection lifecycle — multiple Freeze fields pending across replace
 			assert.equal(
 				env.self._freezeValue('freeze_select_0A'),
 				'01',
-				'the pending value is unaffected by the failed send',
+				'the pending value is unaffected by the failed send, 50ms in — well before its own deadline',
 			)
 			assert.equal(
 				env.statuses.at(-1).status,
 				'connection_failure',
 				'the failed send is still observable as a status change',
+			)
+
+			env.advance(1950) // 50ms already elapsed + 1950ms = the full 2000ms deadline
+			assert.equal(
+				env.self._freezeValue('freeze_select_0A'),
+				'FALLBACK',
+				"the pending value still expires normally at its own deadline — the rejected send did not somehow freeze or extend it",
 			)
 		} finally {
 			process.removeListener('unhandledRejection', onUnhandled)
