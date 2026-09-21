@@ -84,10 +84,14 @@ describe('upgrades.js — index 0 (pre-existing no-op) is unchanged', () => {
 		assert.deepEqual(result, { updatedConfig: null, updatedActions: [], updatedFeedbacks: [] })
 	})
 
-	test('exactly two upgrade scripts are registered, in order', () => {
-		assert.equal(upgrades.length, 2)
+	test('exactly three upgrade scripts are registered, in order', () => {
+		// Index 2 (freezeSwitchSelectEnableDisable's numeric-enable
+		// migration) was added on top of this branch's Freeze Type/Select
+		// work — see test/freezeTypeSelect.test.js for its own coverage.
+		assert.equal(upgrades.length, 3)
 		assert.equal(typeof upgrades[0], 'function')
 		assert.equal(typeof upgrades[1], 'function')
+		assert.equal(typeof upgrades[2], 'function')
 	})
 })
 
