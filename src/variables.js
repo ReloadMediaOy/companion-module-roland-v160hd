@@ -49,6 +49,11 @@ module.exports = {
 		variables.push({ variableId: 'aux3link', name: 'Aux Link' })
 
 		variables.push({ variableId: 'freeze', name: 'Freeze On/Off' })
+		variables.push({ variableId: 'freeze_type', name: 'Freeze Type (All/Select)' })
+		for (let i = 1; i <= 8; i++) {
+			variables.push({ variableId: 'freeze_select_hdmi' + i, name: 'Freeze Select HDMI IN ' + i })
+			variables.push({ variableId: 'freeze_select_sdi' + i, name: 'Freeze Select SDI IN ' + i })
+		}
 
 		//memory names
 		for (let i = 1; i <= 30; i++) {
@@ -208,6 +213,16 @@ module.exports = {
 			//Freeze
 			// Effective value: locally-pending if set, otherwise DATA.freeze.
 			variableObj.freeze = self._freezeValue('freeze') == '01' ? 'On' : 'Off'
+			variableObj.freeze_type = self._freezeValue('freeze_type') == '01' ? 'Select' : 'All'
+			// HDMI IN 1-8: addresses 02-09, SDI IN 1-8: addresses 0A-11.
+			for (let i = 0; i < 8; i++) {
+				const hdmiAddr = (i + 2).toString(16).padStart(2, '0').toUpperCase()
+				const sdiAddr = (i + 0x0a).toString(16).padStart(2, '0').toUpperCase()
+				variableObj['freeze_select_hdmi' + (i + 1)] =
+					self._freezeValue(`freeze_select_${hdmiAddr}`) == '01' ? 'Enabled' : 'Disabled'
+				variableObj['freeze_select_sdi' + (i + 1)] =
+					self._freezeValue(`freeze_select_${sdiAddr}`) == '01' ? 'Enabled' : 'Disabled'
+			}
 
 			self.setVariableValues(variableObj)
 		} catch (error) {

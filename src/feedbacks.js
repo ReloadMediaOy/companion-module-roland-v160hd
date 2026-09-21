@@ -421,6 +421,49 @@ module.exports = {
 			},
 		}
 
+		feedbacks.freeze_type_select = {
+			type: 'boolean',
+			name: 'Freeze Type: Select',
+			description: 'True when Freeze Type is set to Select (not All)',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [],
+			callback: function (feedback, bank) {
+				return self._freezeValue('freeze_type') == '01'
+			},
+		}
+
+		feedbacks.freeze_input_selected = {
+			type: 'boolean',
+			name: 'Freeze Select: Input Active',
+			description: 'True when the chosen input is enabled in Freeze Select mode',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Input',
+					id: 'input',
+					default: '02',
+					choices: self.CHOICES_FREEZE_INPUTS,
+				},
+			],
+			callback: function (feedback, bank) {
+				let opt = feedback.options
+
+				// This reflects the Freeze Select enable bit for the chosen
+				// input, not proof the input is frozen right now — see the
+				// implement handoff: Select-input feedback is not
+				// conditioned on the global Freeze On/Off state or the
+				// All/Select type, matching the reference implementation.
+				return self._freezeValue(`freeze_select_${opt.input}`) == '01'
+			},
+		}
+
 		feedbacks.pnpKeySource = {
 			type: 'boolean',
 			name: 'PnP/Key Source State',

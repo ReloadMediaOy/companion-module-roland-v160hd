@@ -443,4 +443,27 @@ module.exports = {
 		{ id: '4F', label: 'Camera 15' },
 		{ id: '50', label: 'Camera 16' },
 	],
+
+	// Freeze Select inputs — HDMI IN 1-8 at addresses 02-09, SDI IN 1-8 at
+	// 0A-11 (see V-160HD_Control_eng06_W.pdf p.24 FREEZE table). Shared
+	// between the freezeSwitchSelectEnableDisable action and the
+	// freeze_input_selected feedback so their dropdowns cannot drift apart.
+	CHOICES_FREEZE_INPUTS: [
+		{ id: '02', label: 'HDMI IN 1' },
+		{ id: '03', label: 'HDMI IN 2' },
+		{ id: '04', label: 'HDMI IN 3' },
+		{ id: '05', label: 'HDMI IN 4' },
+		{ id: '06', label: 'HDMI IN 5' },
+		{ id: '07', label: 'HDMI IN 6' },
+		{ id: '08', label: 'HDMI IN 7' },
+		{ id: '09', label: 'HDMI IN 8' },
+		{ id: '0A', label: 'SDI IN 1' },
+		{ id: '0B', label: 'SDI IN 2' },
+		{ id: '0C', label: 'SDI IN 3' },
+		{ id: '0D', label: 'SDI IN 4' },
+		{ id: '0E', label: 'SDI IN 5' },
+		{ id: '0F', label: 'SDI IN 6' },
+		{ id: '10', label: 'SDI IN 7' },
+		{ id: '11', label: 'SDI IN 8' },
+	],
 }

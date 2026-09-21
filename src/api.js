@@ -48,7 +48,7 @@ module.exports = {
 		// harmless, and covers a pending value set after this point but
 		// before that new session exists.
 		self._clearAllFreezePending()
-		self.checkFeedbacks('freeze')
+		self.checkFeedbacks('freeze', 'freeze_type_select', 'freeze_input_selected')
 		self.checkVariables()
 
 		if (self.socket !== undefined) {
@@ -101,7 +101,7 @@ module.exports = {
 				// existing feedback/variable in case removing a stale pending
 				// value changes what they display.
 				self._clearAllFreezePending()
-				self.checkFeedbacks('freeze')
+				self.checkFeedbacks('freeze', 'freeze_type_select', 'freeze_input_selected')
 				self.checkVariables()
 				self.log('info', 'Connected — authenticating')
 				self.updateStatus(InstanceStatus.Connecting, 'Authenticating')
@@ -795,9 +795,11 @@ module.exports = {
 															self.DATA.freeze = block[0]
 															self._clearFreezePending('freeze')
 															self.DATA.freeze_type = block[1]
+															self._clearFreezePending('freeze_type')
 															for (let i = 2; i < block.length; i++) {
 																const addrHex = i.toString(16).padStart(2, '0').toUpperCase()
 																self.DATA[`freeze_select_${addrHex}`] = block[i]
+																self._clearFreezePending(`freeze_select_${addrHex}`)
 															}
 															self.logVerbose('Received freeze block: ' + value)
 														} else if (self._parseHexBlock(value, 1)) {
@@ -810,6 +812,7 @@ module.exports = {
 													} else if (param3 == '01') {
 														if (self._parseHexBlock(value, 1)) {
 															self.DATA.freeze_type = value
+															self._clearFreezePending('freeze_type')
 															self.logVerbose('Received Freeze Type: ' + value)
 														} else {
 															self.log('warn', 'Unexpected value for freeze type: ' + value)
@@ -819,6 +822,7 @@ module.exports = {
 														if (p3 >= 2 && p3 <= 0x11) {
 															if (self._parseHexBlock(value, 1)) {
 																self.DATA[`freeze_select_${param3.toUpperCase()}`] = value
+																self._clearFreezePending(`freeze_select_${param3.toUpperCase()}`)
 																self.logVerbose('Received Freeze Select ' + param3 + ': ' + value)
 															} else {
 																self.log('warn', 'Unexpected value for freeze select ' + param3 + ': ' + value)

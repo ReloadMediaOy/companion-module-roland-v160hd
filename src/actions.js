@@ -1735,7 +1735,29 @@ module.exports = {
 				let options = action.options
 				let address = '020501'
 				let value = options.type
-				self.sendCommand(address, value)
+
+				// Absolute command — always requests the selected value, never
+				// computed from current state. Does not write DATA.freeze_type
+				// itself; only the parser does that (src/api.js). If already
+				// disconnected, skip the pending overlay/readback entirely and
+				// preserve the existing send behavior unchanged.
+				if (self.socket !== undefined && self.socket.isConnected) {
+					self._setFreezePending('freeze_type', value, function () {
+						self.checkFeedbacks('freeze_type_select')
+						self.checkVariables()
+					})
+					self.checkFeedbacks('freeze_type_select')
+					self.checkVariables()
+					self.sendCommand(address, value)
+					self.sendRawCommand('RQH:' + address + ',000001;')
+					// Type also affects which of the 16 per-input Select fields
+					// are meaningful to show — request the full 18-byte Freeze
+					// block once so those follow along, without polling them
+					// individually or on a recurring basis.
+					self.getFreezeData()
+				} else {
+					self.sendCommand(address, value)
+				}
 			},
 		}
 
@@ -1747,30 +1769,13 @@ module.exports = {
 					label: 'Input',
 					id: 'input',
 					default: '02',
-					choices: [
-						{ id: '02', label: 'HDMI IN 1' },
-						{ id: '03', label: 'HDMI IN 2' },
-						{ id: '04', label: 'HDMI IN 3' },
-						{ id: '05', label: 'HDMI IN 4' },
-						{ id: '06', label: 'HDMI IN 5' },
-						{ id: '07', label: 'HDMI IN 6' },
-						{ id: '08', label: 'HDMI IN 7' },
-						{ id: '09', label: 'HDMI IN 8' },
-						{ id: '0A', label: 'SDI IN 1' },
-						{ id: '0B', label: 'SDI IN 2' },
-						{ id: '0C', label: 'SDI IN 3' },
-						{ id: '0D', label: 'SDI IN 4' },
-						{ id: '0E', label: 'SDI IN 5' },
-						{ id: '0F', label: 'SDI IN 6' },
-						{ id: '10', label: 'SDI IN 7' },
-						{ id: '11', label: 'SDI IN 8' },
-					],
+					choices: self.CHOICES_FREEZE_INPUTS,
 				},
 				{
 					type: 'dropdown',
 					label: 'Enable/Disable',
 					id: 'enable',
-					default: 1,
+					default: '01',
 					choices: [
 						{ id: '00', label: 'Disable' },
 						{ id: '01', label: 'Enable' },
@@ -1781,7 +1786,20 @@ module.exports = {
 				let options = action.options
 				let address = '0205' + options.input
 				let value = options.enable
-				self.sendCommand(address, value)
+				let field = 'freeze_select_' + options.input
+
+				if (self.socket !== undefined && self.socket.isConnected) {
+					self._setFreezePending(field, value, function () {
+						self.checkFeedbacks('freeze_input_selected')
+						self.checkVariables()
+					})
+					self.checkFeedbacks('freeze_input_selected')
+					self.checkVariables()
+					self.sendCommand(address, value)
+					self.sendRawCommand('RQH:' + address + ',000001;')
+				} else {
+					self.sendCommand(address, value)
+				}
 			},
 		}
 
