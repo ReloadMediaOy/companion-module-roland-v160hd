@@ -27,7 +27,8 @@
 //
 // None of blocks 3, 4, 5 or 6 use node:test's mock.timers (absent on Node
 // 18.17.0 — see FREEZE-ONOFF-INDEPENDENT-REVIEW.md finding 4). Instead,
-// `withCapturedTimers` below temporarily replaces the real global
+// `withCapturedTimers` (test-support/capturedTimers.js — shared with
+// test/freezeTypeSelect.test.js) temporarily replaces the real global
 // setTimeout/clearTimeout with a capturing stub: setTimeout records the
 // callback (and, where asserted, the requested delay) and returns a fake
 // id instead of scheduling anything for real, so no test ever waits on a
@@ -41,6 +42,7 @@
 const { test, describe } = require('node:test')
 const assert = require('node:assert/strict')
 const { createEnvironment, authenticate, simulateReady } = require('../test-support/lifecycleHarness')
+const { withCapturedTimers } = require('../test-support/capturedTimers')
 
 // ── Module stubs (mirrors test/smallCorrectnessFixtures.test.js) ────────────
 
@@ -256,56 +258,6 @@ function makeApiSelf() {
 		config: { verbose: false },
 		log: () => {},
 	})
-}
-
-// Node 18.17.0-safe timer control (node:test's mock.timers is unavailable
-// there — see the file header). Temporarily replaces the real global
-// setTimeout/clearTimeout with a capturing stub for the duration of `fn`:
-// setTimeout records the callback and requested delay and returns a fake
-// id instead of scheduling anything for real; clearTimeout normally
-// forgets that id, unless `bypassNextClear()` was called, in which case
-// the NEXT clearTimeout call is a deliberate no-op (simulating a code path
-// that misses cancellation) and the callback stays invocable. Restores the
-// real globals in a `finally`, so a throwing test never leaks the stub.
-function withCapturedTimers(fn) {
-	const realSetTimeout = global.setTimeout
-	const realClearTimeout = global.clearTimeout
-	const callbacks = new Map()
-	const delays = new Map()
-	const clearedIds = new Set()
-	let nextId = 0
-	let bypassNextClear = false
-	global.setTimeout = (cb, delay) => {
-		const id = ++nextId
-		callbacks.set(id, cb)
-		delays.set(id, delay)
-		return id
-	}
-	global.clearTimeout = (id) => {
-		if (bypassNextClear) {
-			bypassNextClear = false
-			return
-		}
-		callbacks.delete(id)
-		clearedIds.add(id)
-	}
-	try {
-		return fn({
-			invoke: (id) => {
-				const cb = callbacks.get(id)
-				assert.ok(cb, `no live captured callback for timer id ${id} — it was already cleared or never scheduled`)
-				cb()
-			},
-			delayOf: (id) => delays.get(id),
-			wasCleared: (id) => clearedIds.has(id),
-			bypassNextClear: () => {
-				bypassNextClear = true
-			},
-		})
-	} finally {
-		global.setTimeout = realSetTimeout
-		global.clearTimeout = realClearTimeout
-	}
 }
 
 describe('api.js — freeze pending overlay primitives', () => {
