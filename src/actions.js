@@ -1803,6 +1803,93 @@ module.exports = {
 			},
 		}
 
+		// Set Freeze modifier — a purely local UI flag (index.js's
+		// constructor), never a DATA field or a pending record, never
+		// touched by the Freeze pending-overlay lifecycle. No device
+		// command, no readback: works identically connected or
+		// disconnected. Both actions refresh the modifier's own feedback
+		// and the real, registered checkVariables() computation immediately.
+		actions.freezeSelectModeEnable = {
+			name: 'Freeze Select Mode: Enable',
+			options: [],
+			callback: function (action, bank) {
+				self.freeze_select_mode = true
+				self.checkFeedbacks('freeze_select_mode_active')
+				self.checkVariables()
+			},
+		}
+
+		actions.freezeSelectModeDisable = {
+			name: 'Freeze Select Mode: Disable',
+			options: [],
+			callback: function (action, bank) {
+				self.freeze_select_mode = false
+				self.checkFeedbacks('freeze_select_mode_active')
+				self.checkVariables()
+			},
+		}
+
+		// Combined PVW-select / Freeze-select-toggle action. `input` and
+		// `freeze_addr` are two INDEPENDENT options — the PVW branch reads
+		// only `input`, the Freeze branch reads only `freeze_addr`; neither
+		// is derived from the other. With the Set Freeze modifier off, this
+		// behaves exactly like the existing, separate `select_pvw` action
+		// (same address/write, plus the existing getAuxSources() refresh —
+		// see its own 250ms debounce, unchanged). With the modifier on, it
+		// toggles the chosen input's Freeze Select enable bit, using the
+		// same absolute-write/pending/readback pattern as
+		// freezeSwitchSelectEnableDisable above, except the value written is
+		// computed (toggled) from the current effective value rather than
+		// chosen directly by the user. The toggle reads _freezeValue (never
+		// DATA directly), so a rapid second press before any device
+		// response reads the first press's own pending value — DATA is
+		// still written only by the parser.
+		actions.pvwOrFreezeToggle = {
+			name: 'PVW Select / Freeze Toggle (dual-function)',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'PVW source (physical HDMI/SDI)',
+					id: 'input',
+					default: '00',
+					choices: self.CHOICES_PVW_PHYSICAL_SOURCES,
+				},
+				{
+					type: 'dropdown',
+					label: 'Freeze Select address (physical HDMI/SDI input)',
+					id: 'freeze_addr',
+					default: '02',
+					choices: self.CHOICES_FREEZE_INPUTS,
+				},
+			],
+			callback: function (action, bank) {
+				let options = action.options
+
+				if (self.freeze_select_mode) {
+					let address = '0205' + options.freeze_addr
+					let field = 'freeze_select_' + options.freeze_addr
+					let current = self._freezeValue(field)
+					let value = current == '01' ? '00' : '01'
+
+					if (self.socket !== undefined && self.socket.isConnected) {
+						self._setFreezePending(field, value, function () {
+							self.checkFeedbacks('freeze_input_selected')
+							self.checkVariables()
+						})
+						self.checkFeedbacks('freeze_input_selected')
+						self.checkVariables()
+						self.sendCommand(address, value)
+						self.sendRawCommand('RQH:' + address + ',000001;')
+					} else {
+						self.sendCommand(address, value)
+					}
+				} else {
+					self.sendCommand('002101', options.input)
+					self.getAuxSources()
+				}
+			},
+		}
+
 		//Camera Control
 
 		actions.selectCamera = {

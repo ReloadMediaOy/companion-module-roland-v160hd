@@ -56,6 +56,14 @@ class v160Instance extends InstanceBase {
 		// _setFreezePending/_clearFreezePending/_clearAllFreezePending.
 		this._freezePending = {}
 
+		// Set Freeze modifier (pvwOrFreezeToggle's dual-function switch) — a
+		// purely local UI flag, not a DATA field or a pending record: never
+		// read from or written by the device, never cleared by the Freeze
+		// pending-overlay lifecycle. Survives a TCP disconnect, a same-helper
+		// reconnect, an initConnection() replacement, and a config update on
+		// this same instance; only a brand-new instance starts over at false.
+		this.freeze_select_mode = false
+
 		this.selectedCamera = '41' //camera 1 (Roland protocol address 0x41)
 	}
 

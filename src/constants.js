@@ -466,4 +466,32 @@ module.exports = {
 		{ id: '10', label: 'SDI IN 7' },
 		{ id: '11', label: 'SDI IN 8' },
 	],
+
+	// Physical HDMI/SDI source ids for pvwOrFreezeToggle's PVW-select branch
+	// (PST Select, address 002101 — see V-160HD_Control_eng06_W.pdf p.8;
+	// full legal value range is 00-33H covering HDMI/SDI/STILL/INPUT, but
+	// this dual-function action's own dropdown is intentionally scoped to
+	// only the 16 physical HDMI/SDI sources, matching the reference
+	// implementation). Distinct from CHOICES_FREEZE_INPUTS above: same
+	// physical inputs, but 00-0F here vs 02-11 there — two different
+	// protocol address spaces (PST Select's source-select values vs Freeze
+	// Select's own per-input addresses), not interchangeable.
+	CHOICES_PVW_PHYSICAL_SOURCES: [
+		{ id: '00', label: 'HDMI 1' },
+		{ id: '01', label: 'HDMI 2' },
+		{ id: '02', label: 'HDMI 3' },
+		{ id: '03', label: 'HDMI 4' },
+		{ id: '04', label: 'HDMI 5' },
+		{ id: '05', label: 'HDMI 6' },
+		{ id: '06', label: 'HDMI 7' },
+		{ id: '07', label: 'HDMI 8' },
+		{ id: '08', label: 'SDI 1' },
+		{ id: '09', label: 'SDI 2' },
+		{ id: '0A', label: 'SDI 3' },
+		{ id: '0B', label: 'SDI 4' },
+		{ id: '0C', label: 'SDI 5' },
+		{ id: '0D', label: 'SDI 6' },
+		{ id: '0E', label: 'SDI 7' },
+		{ id: '0F', label: 'SDI 8' },
+	],
 }

@@ -464,6 +464,23 @@ module.exports = {
 			},
 		}
 
+		feedbacks.freeze_select_mode_active = {
+			type: 'boolean',
+			name: 'Freeze Select Mode Active',
+			description: 'True when the Set Freeze modifier is active (dual-function mode)',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [],
+			callback: function (feedback, bank) {
+				// The Set Freeze modifier is a purely local UI flag
+				// (index.js's constructor) — not a DATA field, never read
+				// via _freezeValue.
+				return self.freeze_select_mode === true
+			},
+		}
+
 		feedbacks.pnpKeySource = {
 			type: 'boolean',
 			name: 'PnP/Key Source State',

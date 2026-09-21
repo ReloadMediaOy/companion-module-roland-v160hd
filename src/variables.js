@@ -50,6 +50,7 @@ module.exports = {
 
 		variables.push({ variableId: 'freeze', name: 'Freeze On/Off' })
 		variables.push({ variableId: 'freeze_type', name: 'Freeze Type (All/Select)' })
+		variables.push({ variableId: 'freeze_select_mode', name: 'Freeze Select Mode Active' })
 		for (let i = 1; i <= 8; i++) {
 			variables.push({ variableId: 'freeze_select_hdmi' + i, name: 'Freeze Select HDMI IN ' + i })
 			variables.push({ variableId: 'freeze_select_sdi' + i, name: 'Freeze Select SDI IN ' + i })
@@ -214,6 +215,9 @@ module.exports = {
 			// Effective value: locally-pending if set, otherwise DATA.freeze.
 			variableObj.freeze = self._freezeValue('freeze') == '01' ? 'On' : 'Off'
 			variableObj.freeze_type = self._freezeValue('freeze_type') == '01' ? 'Select' : 'All'
+			// The Set Freeze modifier is a purely local UI flag, not a DATA
+			// field — read directly, not via _freezeValue.
+			variableObj.freeze_select_mode = self.freeze_select_mode ? 'Active' : 'Off'
 			// HDMI IN 1-8: addresses 02-09, SDI IN 1-8: addresses 0A-11.
 			for (let i = 0; i < 8; i++) {
 				const hdmiAddr = (i + 2).toString(16).padStart(2, '0').toUpperCase()
