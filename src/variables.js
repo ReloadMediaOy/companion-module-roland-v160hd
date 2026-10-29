@@ -34,6 +34,12 @@ module.exports = {
 		variables.push({ variableId: 'sdi3', name: 'SDI Output 3 Source' })
 		variables.push({ variableId: 'usb', name: 'USB Output Source' })
 
+		//Monitor Assigns
+		variables.push({ variableId: 'monitor1_assign', name: 'Monitor 1 Assignment' })
+		variables.push({ variableId: 'monitor2_assign', name: 'Monitor 2 Assignment' })
+		variables.push({ variableId: 'monitor3_assign', name: 'Monitor 3 Assignment' })
+		variables.push({ variableId: 'monitor4_assign', name: 'Monitor 4 Assignment' })
+
 		//Aux Assigns
 		variables.push({ variableId: 'aux1', name: 'Aux 1 Source' })
 		variables.push({ variableId: 'aux2', name: 'Aux 2 Source' })
@@ -162,6 +168,18 @@ module.exports = {
 				variableObj.usb = usbassign.label
 			} else {
 				variableObj.usb = self.DATA.usbassign
+			}
+
+			//Monitor Assigns
+			for (let m = 1; m <= 4; m++) {
+				let monAssign = self.CHOICES_MONITOR_ASSIGN.find((item) => {
+					return item.id == self.DATA['monitor' + m + 'assign']
+				})
+				if (monAssign !== undefined) {
+					variableObj['monitor' + m + '_assign'] = monAssign.label
+				} else {
+					variableObj['monitor' + m + '_assign'] = self.DATA['monitor' + m + 'assign']
+				}
 			}
 
 			//Aux Sources
