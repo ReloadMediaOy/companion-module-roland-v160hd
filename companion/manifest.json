@@ -8,7 +8,7 @@
 	"version": "0.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/ReloadMediaOy/companion-module-roland-v160hd.git",
-	"bugs": "https://github.com/ReloadMediaOy/companion-module-roland-v160hd/blob/test/community-2.5.1-beta.1/COMMUNITY-TESTING.md#feedback",
+	"bugs": "https://github.com/ReloadMediaOy/companion-module-roland-v160hd/issues/new/choose",
 	"maintainers": [
 		{
 			"name": "Joseph Adams",

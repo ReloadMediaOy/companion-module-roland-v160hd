@@ -1,10 +1,10 @@
 # Feature support and current limits
 
-This document describes community test build **2.5.1-beta.1**, whose runtime JavaScript is unchanged from the original 2.5.0 implementation at [`757da28`](https://github.com/roopeberg/companion-module-roland-v160hd/tree/757da284994835383262349c7efd998ed89cac91). These features were not all added by the beta packaging release. Later work prepared for the official Bitfocus module is a separate implementation.
+This document describes the **2.5.1-beta.2 community test build**: the original 2.5.0 implementation at [`757da28`](https://github.com/roopeberg/companion-module-roland-v160hd/tree/757da284994835383262349c7efd998ed89cac91), plus the dedicated CUT/AUTO correction below. These features were not all added by this beta. Later work prepared for the official Bitfocus module is a separate implementation.
 
 **Implemented** means that a named action, feedback, variable or preset exists in this build. **Partial** means that only part of the device function is exposed, or a specific implementation limitation applies. **No dedicated controls** means that this module has no purpose-built controls for that function; a generic panel-button action or an existing device macro may still reach part of it indirectly.
 
-These are implementation descriptions, not hardware-test results. See [TESTING.md](TESTING.md) for recorded evidence and checks still requiring a real switcher. The two documented protocol discrepancies below are known implementation findings, separate from missing test coverage.
+These are implementation descriptions, not hardware-test results. See [TESTING.md](TESTING.md) for recorded evidence and checks still requiring a real switcher. The CUT/AUTO correction and the still-unresolved DSK protocol discrepancy below are separate from missing device-test coverage.
 
 The bundled [Reference Manual](manuals/V-160HD_Reference_eng09_W.pdf) covers firmware **3.50 and later**. The older firmware 1.04 minimum carried in the module documentation does not establish that every feature below is available or tested on every firmware version. Include your actual firmware version in test reports.
 
@@ -22,7 +22,7 @@ The bundled [Reference Manual](manuals/V-160HD_Reference_eng09_W.pdf) covers fir
 | PiP/DSK capture, apply and local snapshots | Partial | Captures selected raw parameters and saves/loads/deletes JSON files on the Companion computer. PiP capture/apply includes 15 parameters: bus state, source/type, geometry and basic border settings. It omits key-level/gain/mix, chroma, custom RGB and despill parameters. DSK capture/apply includes nine parameter entries and is limited as described below. These are **not complete PiP/DSK or whole-device backups**. |
 | Device labels | Implemented | Reads and writes 40 physical-source/bus label slots. Names are read on authentication and by Refresh Source Labels. Writes are limited to eight printable ASCII characters. Names are not continually polled. |
 | Device memories 1–30 | Partial | Recall, save, initialize, name variables and memory presets. Memory names are read; no dedicated memory-name editor or device-memory USB import/export is provided. |
-| Transitions | Partial | Mix/wipe type, mix pattern, wipe pattern/direction and transition-time actions. Dedicated CUT Take/AUTO Take actions have the address discrepancy below; generic panel-button controls use the documented CUT/AUTO addresses. No dedicated continuous AB-fader control is provided. |
+| Transitions | Partial | Mix/wipe type, mix pattern, wipe pattern/direction and transition-time actions. Dedicated CUT Take/AUTO Take actions now use the documented addresses and queued press/release pairs; hardware verification of the pulse and resulting transitions is pending. Generic panel-button controls remain a separate implementation. No dedicated continuous AB-fader control is provided. |
 | Device macros | Partial | Runs an existing macro 1–100. The module does not record, edit, copy, rename, import or export macros, and does not expose comprehensive macro execution state. |
 | Sequencer | Partial | Generic panel actions include ON, AUTO SEQUENCE, PREVIOUS and NEXT. There is no sequence editor or detailed sequence-state feedback. |
 | Panel buttons | Implemented | Generic press, release and press-and-release actions cover many front-panel buttons, including SPLIT, AUTO MIXING, CAPTURE, MODE, USER and sequencer buttons. Their effects depend on the device's current configuration. They do not provide full configuration or state feedback for those functions. |
@@ -33,17 +33,19 @@ Implementation references: [actions](src/actions.js), [source choices and panel 
 
 ## Known implementation discrepancies
 
-These findings were identified by comparing the published source with the Roland Control Guide. No device test was performed during that code audit. A subsequent user report of CUT Take failure is recorded below; the AUTO Take and DSK findings have not been confirmed by that report. No runtime fix is included in this documentation update.
+The source audit identified dedicated CUT/AUTO address errors and DSK snapshot mapping errors against the Roland Control Guide. This build corrects only CUT/AUTO. The DSK implementation is unchanged and remains unresolved. No device test was performed during the audit or the CUT/AUTO correction; the user report below concerns the earlier version.
 
-### Dedicated CUT Take and AUTO Take addresses
+### Dedicated CUT Take and AUTO Take — corrected, device test pending
 
-The dedicated actions send `DTH:08001E,01;` and `DTH:08001F,01;`. The Control Guide defines the CUT and AUTO panel buttons at **`0B001E` and `0B001F`**. These dedicated shortcuts therefore do not match the documented panel-switch addresses and should not be treated as validated controls.
+The earlier dedicated actions sent `DTH:08001E,01;` and `DTH:08001F,01;`. This build uses the documented CUT and AUTO panel-button addresses **`0B001E` and `0B001F`**, sending **`01` (press) followed by `00` (release)** for each invocation through the existing high-priority FIFO. Consecutive sends are spaced at least **20 ms** apart. The nominal 20 ms pulse has not yet been verified on hardware; the guide defines press/release values but does not establish that pulse as a tested hold time.
+
+CUT also stops assigning cached PVW to cached PGM optimistically: source feedback follows device responses. Both actions retain source-refresh requests, subject to existing suppression and polling. An AUTO response read before the transition finishes is not completion confirmation. Existing action/preset IDs are retained; no recreation of existing dedicated CUT/AUTO buttons is required.
 
 **Field report — 2026-10-29:** A user reports that **CUT Take does not work in version 2.5**. This is a user-reported device failure, not an independent reproduction or a verified fix. The exact module patch/build, firmware and detailed reproduction steps were not supplied. The report is consistent with the CUT address discrepancy; it does not confirm an AUTO Take failure.
 
-The generic **Press and Release Panel Switch** action offers CUT SW and AUTO SW with the documented `0B` addresses. That is an alternative command path to test, not evidence that all transition behavior has already been verified on hardware.
+The generic **Press and Release Panel Switch** action still offers CUT SW and AUTO SW and retains its separate 200 ms timer implementation. That path was not changed by this build and is not evidence that the corrected dedicated actions have passed device testing.
 
-Evidence: [dedicated actions](src/actions.js#L1504-L1526), [generic panel action](src/actions.js#L1529-L1581), [CUT/AUTO choices](src/constants.js#L357-L358), [Control Guide, p.31](manuals/V-160HD_Control_eng06_W.pdf#page=31).
+Evidence: [dedicated and generic panel actions](src/actions.js), [queue](src/api.js), [CUT/AUTO regression tests](test/take.test.js), [CUT/AUTO choices](src/constants.js#L357-L358), [Control Guide, p.31](manuals/V-160HD_Control_eng06_W.pdf#page=31).
 
 ### DSK snapshot gain and mix-level mapping
 

@@ -1,8 +1,8 @@
 # Roland V-160HD — community test build
 
-**Version 2.5.1-beta.1** is an unofficial ReloadMediaOy build for **Bitfocus Companion 5.x**. Download the [module package from the release](https://github.com/ReloadMediaOy/companion-module-roland-v160hd/releases/tag/v2.5.1-beta.1) and follow the [installation guide](COMMUNITY-TESTING.md).
+**Version 2.5.1-beta.2** is an unofficial ReloadMediaOy build for **Bitfocus Companion 5.x**. Download `roland-v160hd-2.5.1-beta.2.tgz` from the [release assets](https://github.com/ReloadMediaOy/companion-module-roland-v160hd/releases/tag/v2.5.1-beta.2) and follow the [installation guide](COMMUNITY-TESTING.md).
 
-This build packages the broad **2.5.0 implementation at [`757da28`](https://github.com/roopeberg/companion-module-roland-v160hd/tree/757da284994835383262349c7efd998ed89cac91)**. The beta version adds identification and documentation; its runtime JavaScript and dependency lockfile are unchanged. The capabilities and corrections below were already in that implementation. Some have also reached the official Bitfocus module separately, so this is not a list of differences from every current official release.
+This version is based on the broad **2.5.0 implementation at [`757da28`](https://github.com/roopeberg/companion-module-roland-v160hd/tree/757da284994835383262349c7efd998ed89cac91)** and adds a scoped correction to the dedicated **CUT Take / AUTO Take** actions. Its runtime therefore differs from the original implementation and beta.1. Most capabilities and corrections described below were already in that original implementation; some have also reached the official Bitfocus module separately. This is not a list of differences from every current official release.
 
 - [Feature support and known limitations](FEATURE-SUPPORT.md)
 - [Test evidence and device test checklist](TESTING.md)
@@ -14,9 +14,18 @@ Use Companion 5.x with module API 2.1.3 / Node 22 support. The module's inherite
 
 **Re-enter Password and click Save** after upgrading or importing a connection. This runtime reads Companion's separate secret storage, but its upgrade scripts do not migrate older saved passwords.
 
-Two source-versus-manual discrepancies remain in the published runtime: the dedicated **CUT Take / AUTO Take** actions use different addresses from Roland's panel-switch commands, and **DSK Capture / Apply** uses inconsistent gain/mix addresses and lengths. Treat those paths as requiring correction and device verification; do not rely on them for a production take or a faithful DSK restore. Details and the separately implemented generic panel-switch controls are in [FEATURE-SUPPORT.md](FEATURE-SUPPORT.md#known-implementation-discrepancies).
+**CUT/AUTO is corrected in this build, but hardware verification is still pending.** Both dedicated actions now use the documented panel-button addresses and send a complete press/release pair. Verify the actual output before relying on the corrected controls in production. **DSK Capture / Apply remains unchanged and has inconsistent gain/mix addresses and lengths**; do not rely on it for an accurate gain/mix restore. See [FEATURE-SUPPORT.md](FEATURE-SUPPORT.md#known-implementation-discrepancies).
 
 **Field report — 2026-10-29:** A user reports that **CUT Take does not work in version 2.5**. This is a user-reported device failure, not an independent reproduction or a verified fix. The exact module patch/build, firmware and detailed reproduction steps were not supplied. The report is consistent with the CUT address discrepancy; it does not confirm an AUTO Take failure.
+
+## New in the beta.2 build
+
+- **CUT Take** uses `0B001E`; **AUTO Take** uses `0B001F`, matching the Roland Control Guide's panel-switch table. The previous dedicated actions used `08001E` / `08001F`.
+- Each action queues **`01` (press), then `00` (release)** through the existing high-priority FIFO. Successive sends retain the queue's **at least 20 ms** spacing, including repeated button presses. The nominal 20 ms pulse still needs verification on a real switcher; it is not a device-confirmed minimum hold time.
+- CUT no longer sets the cached PGM source to the cached PVW source before confirmation. The displayed source follows device responses. Both actions retain their source-refresh request; normal source-query suppression and polling still apply. An immediate read during AUTO is not proof that the transition has completed.
+- Existing action and preset IDs are retained, so existing dedicated CUT/AUTO buttons use the correction when this version is selected. The generic panel-switch actions, DSK snapshot implementation and other controls are unchanged.
+
+The accompanying regression tests exercise the dedicated actions and queue without a real switcher. Device testing is still required for single and repeated takes, AUTO completion and source feedback.
 
 ## Communication and polling
 
@@ -58,7 +67,7 @@ Adjacent registers are read in blocks where implemented: Freeze (18 bytes: globa
 - **Source labels:** read after authentication, by **Refresh Source Labels**, and by readback after **Set Device Label**. They are not continually polled. After renaming on the switcher, refresh or reconnect.
 - **INPUT assignments:** requested on demand when uncached; all 20 assignments are queried after an Assign Input action. They are not part of the regular tier table.
 
-Some controls update their displayed state locally before device confirmation. This is provisional feedback, not an acknowledgement. In this beta, Freeze writes directly into the local state cache; it does not have the later upstream work's bounded pending-state timeout. Direct PGM/PVW select actions request readback instead of performing the same optimistic cache update. Keep polling enabled for continuing reconciliation.
+Some controls update their displayed state locally before device confirmation. This is provisional feedback, not an acknowledgement. In this beta, Freeze writes directly into the local state cache; it does not have the later upstream work's bounded pending-state timeout. Direct PGM/PVW select actions and the corrected CUT action request readback instead of performing the same optimistic cache update. Keep polling enabled for continuing reconciliation.
 
 ## Capabilities included in this build
 
@@ -72,7 +81,7 @@ Some controls update their displayed state locally before device confirmation. T
 | DSK | Key/fill source, type and bus controls for two channels; partial capture/apply with the known discrepancy noted above |
 | Snapshots | Local JSON save/load/delete and applying captured parameter subsets; not a complete switcher backup |
 | Memory | Exposed recall/save operations, names for slots 1–30 and last-loaded memory feedback |
-| Transitions and panel controls | Mix/wipe settings, generic panel press/release and macro execution; dedicated CUT/AUTO actions need correction/verification |
+| Transitions and panel controls | Mix/wipe settings, generic panel press/release and macro execution; dedicated CUT/AUTO addresses and press/release sequence corrected in beta.2, hardware verification pending |
 | Routing | HDMI/SDI/USB output assignment controls, AUX mute/link, and assignments for the four MONITOR buttons |
 | Cameras | Exposed PTZ, focus, exposure-mode, camera-preset and tally-channel commands; **not tested by this build's publisher**; each camera/setup needs testing |
 | Companion interface | API 2.x variables, layered presets, bus indicators and source-type styling |
@@ -95,13 +104,13 @@ Physical HDMI/SDI/Still presets can use device labels. INPUT/XPT presets retain 
 
 ## What is tested, and what is not supported?
 
-**113/113 automated tests passed on Node 22.23.1**, across parser, queue, block-response, source-label and INPUT-assignment tests. They use simulated data/sockets and are not comprehensive hardware qualification. Historical notes record only partial PiP device checks. Most other device workflows still need reproducible reports for this beta and the tester's firmware/setup.
+**Validation:** 124 automated tests passed in 24 suites on Node 22.23.1. The original baseline comprised 113 tests covering parser, queue, block-response, source-label and INPUT-assignment behavior; this build adds dedicated CUT/AUTO regression coverage. These use simulated data/sockets and are not comprehensive hardware qualification. Historical notes record only partial PiP device checks. Most other device workflows still need reproducible reports for this beta and the tester's firmware/setup.
 
 **Camera testing context:** The publisher uses this V-160HD mainly with presentation computers rather than for camera production and has not tested its camera-control functions at all. PTZ movement, camera presets, focus, exposure-mode and camera-tally controls are implemented, but have not been device-validated by the publisher. Test reports from users with camera setups are welcome.
 
 [FEATURE-SUPPORT.md](FEATURE-SUPPORT.md) separates implemented, partial and missing controls, including audio-mixer settings, video processing, multiview configuration, macro/sequence editing and device setup. [TESTING.md](TESTING.md) lists the implemented functions that still need documented testing and the evidence already available. A feature needing testing is not automatically unsupported.
 
-These branch documents are the current audited guidance. The published `.tgz` has not been rebuilt; its bundled HELP and the original release-tag documents predate these documentation corrections.
+These documents and the revised bundled HELP describe the beta.2 build. The previously published beta.1 package and tag remain unchanged; installing beta.1 does not install the CUT/AUTO correction.
 
 ## Feedback and references
 

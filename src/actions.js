@@ -1505,13 +1505,9 @@ module.exports = {
 			name: 'CUT Take',
 			options: [],
 			callback: function () {
-				// Optimistic: PGM instantly becomes what PST was.
-				if (self.DATA.pvw_source !== undefined) {
-					self.DATA.pgm_source = self.DATA.pvw_source
-					self.checkFeedbacks('bus_tally', 'inputTally')
-					self.checkVariables()
-				}
-				self.sendRawCommand('DTH:08001E,01;', 'high')
+				// Queue a complete panel press/release; source state follows device responses.
+				self.sendCommand('0B001E', '01')
+				self.sendCommand('0B001E', '00')
 				self.getAuxSources()
 			},
 		}
@@ -1520,7 +1516,8 @@ module.exports = {
 			name: 'AUTO Take',
 			options: [],
 			callback: function () {
-				self.sendRawCommand('DTH:08001F,01;', 'high')
+				self.sendCommand('0B001F', '01')
+				self.sendCommand('0B001F', '00')
 				// State updates via polling — transition time is unknown from the module side.
 				self.getAuxSources()
 			},

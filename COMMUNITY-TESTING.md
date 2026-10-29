@@ -1,8 +1,8 @@
 # Roland V-160HD community test guide
 
-**Version 2.5.1-beta.1** is an unofficial ReloadMediaOy test build for Bitfocus Companion. It includes source selection, tally feedback, dynamic source names, Freeze controls, PiP/DSK controls and snapshots. It uses the original 2.5.0 implementation at [commit `757da28`](https://github.com/roopeberg/companion-module-roland-v160hd/tree/757da284994835383262349c7efd998ed89cac91), with unchanged runtime JavaScript. It is not an official Bitfocus release; testing on different hardware setups is still needed.
+**Version 2.5.1-beta.2** is an unofficial ReloadMediaOy build for Bitfocus Companion, based on the original 2.5.0 implementation at [commit `757da28`](https://github.com/roopeberg/companion-module-roland-v160hd/tree/757da284994835383262349c7efd998ed89cac91) plus a scoped CUT/AUTO correction. It includes source selection, tally feedback, dynamic source names, Freeze controls, PiP/DSK controls and partial snapshots. It is not an official Bitfocus release; testing on different hardware setups is still needed.
 
-Read the [communication, polling and feature overview](README.md), [feature support and known limitations](FEATURE-SUPPORT.md), and [test evidence/checklist](TESTING.md) before testing. In particular, the dedicated CUT/AUTO actions and the DSK capture/apply gain/mix handling have source-versus-manual discrepancies; do not treat these paths as verified production controls or a faithful DSK restore.
+Read the [communication, polling and feature overview](README.md), [feature support and known limitations](FEATURE-SUPPORT.md), and [test evidence/checklist](TESTING.md) before testing. The dedicated CUT/AUTO addresses and press/release sequence are corrected in this build, but still need hardware verification. DSK capture/apply gain/mix handling is unchanged and retains its source-versus-manual discrepancy; do not rely on it for an accurate gain/mix restore.
 
 ## Requirements
 
@@ -14,10 +14,10 @@ Export a backup of your current Companion configuration before changing the modu
 
 ## Install the module
 
-1. Download **`roland-v160hd-2.5.1-beta.1.tgz`** from the release assets. Keep it compressed; do not extract it or use GitHub's automatic source-code ZIP.
+1. Download **`roland-v160hd-2.5.1-beta.2.tgz`** from the [release assets](https://github.com/ReloadMediaOy/companion-module-roland-v160hd/releases/tag/v2.5.1-beta.2). Keep it compressed; do not extract it or use GitHub's automatic source-code ZIP. The older beta.1 package does not contain this correction.
 2. Open the browser interface of the Companion instance that will control the switcher. If Companion runs on another computer, you can open its interface over the network and upload the file from your own computer.
 3. Open **Modules → Import module package** and select the `.tgz` file.
-4. Open your **Roland V-160HD** connection and select module version **2.5.1-beta.1**. Enable the beta-version filter if needed to find it.
+4. Open your **Roland V-160HD** connection and select module version **2.5.1-beta.2**. Enable the beta-version filter if needed to find it.
 5. Check the switcher's IP address, enter its password and click **Save**. Enable polling for feedback and state updates.
 
 The package includes the module and its presets. It does not include your existing buttons, pages, connection settings or saved snapshots. Transfer buttons and settings separately with Companion's export/import tools. Snapshot files are stored separately in `~/v160hd-snapshots/` on the Companion computer.
@@ -37,6 +37,8 @@ Add the presets supplied by this version to try its dynamic names and feedback. 
 - Physical HDMI/SDI/Still source presets use dynamic labels. **INPUT/XPT 1–20** buttons still display fixed `INPUT N` text.
 
 ## Useful tests
+
+Start by checking the corrected **CUT Take** and **AUTO Take** on a test setup with distinct PGM/PVW sources. Existing dedicated buttons retain their action/preset IDs and use the correction after selecting beta.2. Each now sends a complete press/release pair through the existing queue, with at least 20 ms between sends; hardware acceptance of that nominal pulse is still unverified. Check the real output, repeated presses and source feedback. Allow AUTO to finish before judging its final state. CUT no longer changes the displayed PGM source optimistically before a device response.
 
 Use the [device test checklist](TESTING.md) to record source selection and tally feedback, names and refresh, Freeze controls, reconnection, and the other functions you use. Confirm that releasing **Set Freeze** returns the combined input buttons to normal PVW selection. Snapshot files contain only selected PiP/DSK parameters; check the [support limits and known discrepancies](FEATURE-SUPPORT.md) before attempting restore tests. Successful use of one function does not validate the whole module.
 
