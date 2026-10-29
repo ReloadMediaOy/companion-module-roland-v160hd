@@ -49,6 +49,7 @@ module.exports = {
 		variables.push({ variableId: 'aux3link', name: 'Aux Link' })
 
 		variables.push({ variableI: 'freeze', name: 'Freeze On/Off' })
+		variables.push({ variableId: 'freeze_type', name: 'Freeze Type' })
 
 		//memory names
 		for (let i = 1; i <= 30; i++) {
@@ -207,6 +208,8 @@ module.exports = {
 
 			//Freeze
 			variableObj.freeze = self.DATA.freeze == '01' ? 'On' : 'Off'
+			variableObj.freeze_type =
+				self.DATA.freeze_type == '00' ? 'All' : self.DATA.freeze_type == '01' ? 'Select' : self.DATA.freeze_type
 
 			self.setVariableValues(variableObj)
 		} catch (error) {

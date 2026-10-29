@@ -414,6 +414,86 @@ module.exports = {
 			},
 		}
 
+		feedbacks.freezeType = {
+			type: 'boolean',
+			name: 'Freeze Type',
+			description: 'Indicate if the freeze type is set to All or Select',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Type',
+					id: 'type',
+					default: '00',
+					choices: [
+						{ id: '00', label: 'All' },
+						{ id: '01', label: 'Select' },
+					],
+				},
+			],
+			callback: function (feedback, bank) {
+				let opt = feedback.options
+				let val = self.DATA.freeze_type
+				if (val === undefined) return false
+				return val == opt.type
+			},
+		}
+
+		feedbacks.freezeSelectInput = {
+			type: 'boolean',
+			name: 'Freeze Select Input',
+			description: 'Indicate if a freeze select input is enabled or disabled',
+			style: {
+				color: foregroundColor,
+				bgcolor: backgroundColorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Input',
+					id: 'input',
+					default: '02',
+					choices: [
+						{ id: '02', label: 'HDMI IN 1' },
+						{ id: '03', label: 'HDMI IN 2' },
+						{ id: '04', label: 'HDMI IN 3' },
+						{ id: '05', label: 'HDMI IN 4' },
+						{ id: '06', label: 'HDMI IN 5' },
+						{ id: '07', label: 'HDMI IN 6' },
+						{ id: '08', label: 'HDMI IN 7' },
+						{ id: '09', label: 'HDMI IN 8' },
+						{ id: '0A', label: 'SDI IN 1' },
+						{ id: '0B', label: 'SDI IN 2' },
+						{ id: '0C', label: 'SDI IN 3' },
+						{ id: '0D', label: 'SDI IN 4' },
+						{ id: '0E', label: 'SDI IN 5' },
+						{ id: '0F', label: 'SDI IN 6' },
+						{ id: '10', label: 'SDI IN 7' },
+						{ id: '11', label: 'SDI IN 8' },
+					],
+				},
+				{
+					type: 'dropdown',
+					label: 'State',
+					id: 'state',
+					default: '01',
+					choices: [
+						{ id: '00', label: 'Disable' },
+						{ id: '01', label: 'Enable' },
+					],
+				},
+			],
+			callback: function (feedback, bank) {
+				let opt = feedback.options
+				let val = self.DATA['freeze_select_' + opt.input]
+				if (val === undefined) return false
+				return val == opt.state
+			},
+		}
+
 		feedbacks.pnpKeySource = {
 			type: 'boolean',
 			name: 'PnP/Key Source State',
