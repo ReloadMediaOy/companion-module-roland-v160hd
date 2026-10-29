@@ -93,6 +93,7 @@ module.exports = {
 		self.getFreezeData()
 		self.getOutputData()
 		self.getAuxLinkData()
+		self.getPgmPvwData()
 
 		self.getMemoryNames()
 		self.getLastMemoryLoaded()
@@ -154,6 +155,22 @@ module.exports = {
 		self.sendRawCommand('RQH:020154,000001;') //Aux 1 link on/off
 		self.sendRawCommand('RQH:020155,000001;') //Aux 2 link on/off
 		self.sendRawCommand('RQH:020156,000001;') //Aux 3 link on/off
+	},
+
+	getPgmPvwData: function () {
+		let self = this
+
+		self.sendRawCommand('RQH:002100,000002;') //PGM + PVW source (2-byte block)
+	},
+
+	_parseHexBlock: function (value, expectedBytes) {
+		if (value.length !== expectedBytes * 2) return null
+		if (!/^[0-9A-Fa-f]+$/.test(value)) return null
+		const out = []
+		for (let i = 0; i < expectedBytes; i++) {
+			out.push(value.slice(i * 2, i * 2 + 2).toUpperCase())
+		}
+		return out
 	},
 
 	/*getTallyData: function() {
@@ -326,6 +343,29 @@ module.exports = {
 														if (lookup) {
 															self.DATA.pnpkey4sourcename = lookup.label
 															self.logVerbose('PnP/Key 4 Source Name: ' + lookup.label)
+														}
+													} else if (param2 == '21') {
+														if (param3 == '00') {
+															//pgm+pvw 2-byte block response or pgm source notification
+															const block = self._parseHexBlock(value, 2)
+															if (block) {
+																self.DATA.pgmsource = block[0]
+																self.DATA.pvwsource = block[1]
+																self.logVerbose('Received PGM source: ' + block[0] + ', PVW source: ' + block[1])
+															} else if (self._parseHexBlock(value, 1)) {
+																self.DATA.pgmsource = value.toUpperCase()
+																self.logVerbose('Received PGM source: ' + value)
+															} else {
+																self.log('warn', 'Unexpected value for PGM/PVW source block: ' + value)
+															}
+														} else if (param3 == '01') {
+															//pvw source notification
+															if (self._parseHexBlock(value, 1)) {
+																self.DATA.pvwsource = value.toUpperCase()
+																self.logVerbose('Received PVW source: ' + value)
+															} else {
+																self.log('warn', 'Unexpected value for PVW source: ' + value)
+															}
 														}
 													} else {
 														//other data
