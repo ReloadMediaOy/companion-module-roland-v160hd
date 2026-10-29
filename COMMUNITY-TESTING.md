@@ -2,10 +2,12 @@
 
 **Version 2.5.1-beta.1** is an unofficial ReloadMediaOy test build for Bitfocus Companion. It includes source selection, tally feedback, dynamic source names, Freeze controls, PiP/DSK controls and snapshots. It uses the original 2.5.0 implementation at [commit `757da28`](https://github.com/roopeberg/companion-module-roland-v160hd/tree/757da284994835383262349c7efd998ed89cac91), with unchanged runtime JavaScript. It is not an official Bitfocus release; testing on different hardware setups is still needed.
 
+Read the [communication, polling and feature overview](README.md), [feature support and known limitations](FEATURE-SUPPORT.md), and [test evidence/checklist](TESTING.md) before testing. In particular, the dedicated CUT/AUTO actions and the DSK capture/apply gain/mix handling have source-versus-manual discrepancies; do not treat these paths as verified production controls or a faithful DSK restore.
+
 ## Requirements
 
 - Companion **5.x**, with support for module API 2.1.3 and the Node 22 runtime.
-- Roland V-160HD firmware **1.04 or later**, with a remote-control password configured.
+- Roland V-160HD with a remote-control password configured. The inherited module minimum is **firmware 1.04**, but feature compatibility across firmware versions has not been fully tested; the supplied Reference Manual describes version 3.50 and later. Record the version you use.
 - Network access from the Companion computer to the switcher.
 
 Export a backup of your current Companion configuration before changing the module version. Try the build in a test setup before using it for a live production.
@@ -36,7 +38,7 @@ Add the presets supplied by this version to try its dynamic names and feedback. 
 
 ## Useful tests
 
-Try source selection and tally feedback, naming and refreshing an input, and Freeze On/Off and per-input selection. Confirm that releasing **Set Freeze** returns the combined input buttons to normal PVW selection. Check reconnection and any PiP/DSK or snapshot functions you normally use.
+Use the [device test checklist](TESTING.md) to record source selection and tally feedback, names and refresh, Freeze controls, reconnection, and the other functions you use. Confirm that releasing **Set Freeze** returns the combined input buttons to normal PVW selection. Snapshot files contain only selected PiP/DSK parameters; check the [support limits and known discrepancies](FEATURE-SUPPORT.md) before attempting restore tests. Successful use of one function does not validate the whole module.
 
 ## Feedback
 

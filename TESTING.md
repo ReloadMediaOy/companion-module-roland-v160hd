@@ -1,266 +1,65 @@
-# Testing Checklist
-
-Tests to run with live device connected unless otherwise noted.
-
-Legend: ✅ Verified OK | ⚠️ Unverified | ❌ Known issue
-
----
-
-## ✅ #1 — RQH 2-byte parameter response size
-
-Confirmed live: all 2-byte PiP parameters (position H/V, size, cropping, view pos H/V, zoom)
-require `RQH` size `000002`. Module updated accordingly.
-
-## ✅ #2 — PiP parameter addresses (live verified, PiP 1)
-
-| Param        | Address | Size   | Result          |
-| ------------ | ------- | ------ | --------------- |
-| SOURCE       | 001B02  | 1-byte | `29` (Input 10) |
-| TYPE         | 001B03  | 1-byte | `00` (PinP)     |
-| SHAPE        | 001B0E  | 1-byte | `00` (Rect)     |
-| BORDER COLOR | 001B0F  | 1-byte | `00` (White)    |
-| BORDER WIDTH | 001B10  | 1-byte | `00`            |
-| VIEW POS H   | 001B11  | 2-byte | `0000`          |
-| VIEW POS V   | 001B13  | 2-byte | `0000`          |
-| VIEW ZOOM    | 001B15  | 2-byte | `0064` (100%)   |
-
-## ✅ #3 — PiP Position H/V range
-
-Fixed: -100..+100% (per Control Guide p.7). Verified against live device.
-
-## ⚠️ #4 — Capture / Apply round-trip (PiP)
-
-1. Set PiP 1 to a known position/size on the mixer
-2. Press "Capture PiP 1" preset button
-3. Verify module variables show correct values
-4. Change PiP position on mixer
-5. Press "Apply PiP 1" — PiP should return to captured position/size
-
-## ⚠️ #5 — Capture / Apply round-trip (DSK)
-
-Same as above for DSK 1/2.
-Captured params: KEY SOURCE (03), FILL SOURCE (04), TYPE (05), LEVEL (06, 2-byte),
-GAIN (07), MIX LEVEL (09), MODE (02), PGM SW (00), PVW SW (01).
-
-## ⚠️ #6 — Snapshot save / load / clear
-
-1. Capture PiP 1 settings
-2. Press **SAVE / Snap 1** — button should light up (bright orange)
-3. Verify file exists at `~/v160hd-snapshots/snapshot1.json`
-4. Inspect file — should contain all captured DATA keys for PiP 1
-5. Change PiP settings on mixer
-6. Press **Snap 1 / PiP 1** — device should restore saved settings
-7. Press **CLEAR / Snap 1** — button should dim; file should be deleted
-
-## ⚠️ #7 — PGM / PVW source selection presets
-
-Requires polling to be enabled.
-
-Verify preset buttons change correct source on PGM and PVW buses.
-Check tally feedback (bus_tally): red (PGM) / green (PVW) on active source only.
-PGM tally must NOT light up when source is on AUX only.
-PGM (`002100`) and PVW (`002101`) are polled every interval via `getAuxData()`.
-Feedback is also updated immediately when Companion sends a select command.
-
-## ⚠️ #8 — AUX 1–3 source selection presets
-
-Verify preset buttons change AUX output source.
-Check tally feedback on active source only (AUX 1 amber, AUX 2 cyan, AUX 3 violet).
-
-## ⚠️ #9 — AUX tally: device hardware panel changes
-
-AUX 1–3 sources (and PGM/PVW) are polled every interval via `getAuxData()`.
-Hardware panel changes are reflected on the next poll cycle. There is no
-push notification from the device for AUX source changes.
-
-## ⚠️ #10 — Per-bus tally isolation (PGM vs AUX)
-
-Ensure that `bus_tally` feedback for PGM bus does NOT activate when the same source is
-active only on AUX1/AUX2/AUX3. Each bus (pgm/pvw/aux1/aux2/aux3) is tracked independently
-in `DATA.pgm_source`, `DATA.pvw_source`, `DATA.aux1source` etc.
-Variables `pgm_source` and `pvw_source` should reflect the current source label.
-
-## ⚠️ #11 — PiP source / type / shape / border presets
-
-Test preset buttons in Companion for:
-
-- PiP source change (HDMI/SDI/Input)
-- PiP type change (PinP / Luma-W / Luma-B / Chroma)
-- PiP shape change (Rect / Circle / Diamond)
-- PiP border color change (10 colors)
-
-## ⚠️ #12 — DSK source / type presets
-
-Test DSK Key Source, Fill Source, and Type preset buttons.
-
-## ⚠️ #13 — pnpkey_fade addresses (doc-confirmed, live-unverified)
-
-Addresses `020305`–`020308` used for PiP fade enable/disable.
-Confirmed against Roland Control Guide documentation; not yet verified against a live device.
-
-## ⚠️ #14 — aux_mute addresses (doc-confirmed, live-unverified)
-
-Addresses `012203`, `012503`, `012603` used for AUX mute.
-Confirmed against Roland Control Guide documentation; not yet verified against a live device.
-
-## ⚠️ #15 — TCP receive buffer (split/merged packets)
-
-Verify that authentication and data parsing work correctly when the device
-sends responses in multiple TCP segments or merges several responses into one
-packet. Test by connecting over a high-latency or congested network.
-Expected: auth succeeds, tally and variable values are always correct.
-
-Fix applied: the parser processes delimiters (`;`, `\n`, auth prompts) in
-occurrence order. Each delimiter type is handled as soon as it is encountered
-rather than in a fixed type priority. Incomplete trailing messages are kept
-in the buffer for the next TCP chunk. Automated unit tests cover split packets,
-merged packets, interleaved delimiter types, and auth prompt edge cases.
-
-## ⚠️ #16 — Memory names displayed correctly
-
-Requires polling to be enabled.
-
-Memory names are fetched one slot (one 8-byte RQH block) per poll cycle, cycling
-through all 30 slots. At 1 s polling, all 30 names populate within ~30 s.
-Memory names are not fetched at all when polling is disabled.
-
-1. Enable polling (≥ 300 ms rate)
-2. Assign names to memories 1–5 on the device
-3. Connect module and wait ~30 s — names should appear in variables `memoryname_1` … `memoryname_5`
-4. Verify the names show actual text (not hex digits like `41 42 43`)
-5. Verify names with fewer than 8 characters have no trailing spaces in the variable
-
-## ⚠️ #17 — Polling timer does not duplicate on config save
-
-1. Enable polling (1000 ms)
-2. Open Companion connection settings and save without changes
-3. Monitor device traffic — poll rate should remain ~1/s, not double or triple
-
-## ⚠️ #18 — Polling rate validation
-
-Valid range: 300–30 000 ms. Default when omitted or invalid: 500 ms.
-
-1. Set polling rate to `0`, empty, or a non-numeric value (e.g. `abc`)
-2. Save settings — Companion log should show a warning and use 500 ms
-3. Set polling rate to `100` — log should show clamped to 300 ms
-4. Monitor device traffic — poll rate should match the clamped value
-
-## ✅ #19 — Password not logged
-
-Verified: `self.log('info', 'Sending passcode')` no longer includes the password value.
-
-## ⚠️ #20 — Freeze select mode
-
-Requires polling enabled and Freeze Type set to Select on the device.
-
-1. Press the **Set Freeze** button — the button border and bar should turn cyan (freeze_select_mode_active feedback)
-2. While Set Freeze is active, tap an input button (e.g. HDMI IN 1) — that input's freeze state should toggle
-3. Per-input Freeze Select buttons (HDMI 1–8, SDI 1–8) should show cyan when the input is frozen
-4. Tapping an input button while NOT in Set Freeze mode should select it as the PGM/PVW/AUX source as normal
-
-## ⚠️ #21 — PGM + AUX preset buttons
-
-1. Load the **PGM + AUX** preset section into a page
-2. Select a source on PGM — the corresponding button background should turn red
-3. Select the same source on AUX 1 — the lower-left square of that button should turn red; the number `1` should appear on the square
-4. Select on AUX 2 — middle square; AUX 3 — right square
-5. Remove the source from an AUX — the square should return to dark and the number should disappear
-
-## ⚠️ #22 — `lastmemorynumber` shows 1-indexed slot
-
-1. Recall memory slot 1 on the device
-2. Verify variable `lastmemorynumber` shows `1` (not `0`)
-3. Recall memory slot 30 — variable should show `30` (not `29`)
-4. `memory_active` feedback for slot 1 should be true after step 2
-
-## ⚠️ #23 — ERR:N responses logged
-
-1. Enable verbose logging
-2. Trigger a known error condition (e.g. send an out-of-range value via a custom action)
-3. Companion log should show a descriptive warn-level message (e.g. `Parameter error — value out of range` for ERR:1)
-4. ERR:4 / ERR:5 should log at error level
-
-## ⚠️ #24 — Login lockout guard
-
-1. Configure correct password, connect, verify authenticated
-2. Monitor debug log — `Sending passcode` should appear exactly once per connection
-3. Force a reconnect (disable/re-enable polling) — passcode should be sent exactly once on the new connection
-
-## ⚠️ #25 — Password hidden in Companion UI
-
-1. Open module configuration in Companion
-2. Verify the Password field shows masked input (dots), not plaintext
-3. Open Companion debug log — password value must not appear in any log line
-
----
-
-## ⚠️ #26 — Source labels read on connect (polling off)
-
-Verify that all 40 source label variables populate even when polling is disabled.
-
-1. Set label on device: e.g. HDMI IN 1 → "CAM 1"
-2. Disable polling in module config, connect
-3. Variable `label_hdmi_1` should show "CAM 1" within a few seconds
-4. Repeat for SDI IN 1 (`label_sdi_1`), Still 1 (`label_still_1`), PGM (`label_pgm`), AUX 2 (`label_aux2`)
-5. Preset buttons for PGM/PVW/AUX/PiP that reference `$(self:label_hdmi_1)` should show the device label
-
-## ⚠️ #27 — Source labels on preset buttons
-
-1. Change label on the device (HDMI IN 1 → "MAIN CAM")
-2. Press **Refresh Source Labels** action or reconnect
-3. PGM, PVW, AUX, and PiP preset buttons for HDMI IN 1 should update to show "MAIN CAM"
-
-## ⚠️ #28 — Set Device Label write + confirm
-
-1. Set an input label using **Set Device Label** action (e.g. HDMI IN 1 → "TEST")
-2. Module variable `label_hdmi_1` should update immediately (optimistic)
-3. Device display should show "TEST" as the HDMI IN 1 label
-4. Re-read the label from the device (disconnect and reconnect, or press Refresh) — value should still be "TEST"
-5. Test with an 8-character label ("ABCDEFGH") and a label that requires trimming ("TOOLONG!X" → stored as "TOOLONG!")
-
-## ⚠️ #31 — CUT Take and AUTO Take
-
-1. Set a source on PST from Companion (e.g. HDMI IN 2 on PVW)
-2. Press **CUT Take** preset button — device should cut instantly; PGM bus should show HDMI IN 2
-3. The `pgm_source` variable and PGM tally feedback should update immediately (optimistic)
-4. Set a different source on PST
-5. Press **AUTO Take** preset button — device should dissolve/mix to the new source over the configured transition time
-6. PGM tally feedback should update after the transition completes (within the next poll cycle)
-
-## ⚠️ #32 — Monitor 1–4 source assignment
-
-1. Connect Companion and open the **Monitor Assign** preset section
-2. Press e.g. **MON 1 / Multi-View** — Monitor 1 output on the device should switch to Multi-View
-3. The `monitor1_source` variable should update immediately (optimistic) and again after the next background poll (~5 s)
-4. The `monitor_source` feedback button should light up (blue) for the active assignment
-5. Test Monitor 2–4 similarly with different sources (Program, Preview, Aux 1–3, DSK 1–2 Source)
-6. Verify N/A selection turns off the monitor output
-
-## ⚠️ #29 — INPUT/XPT 11–20 assignment resolution
-
-Confirms that Companion correctly resolves which physical source (HDMI, SDI, etc.) is assigned to INPUT slots 11–20.
-
-1. On the device, assign INPUT 11 slot to HDMI IN 3 via the panel "Input Assign" screen
-2. Connect Companion (or reconnect)
-3. Set PGM source to INPUT 11 from Companion (using a preset button or **Select PGM** action)
-4. The device PGM bus should show HDMI IN 3
-5. The `pgm_source` variable and PGM tally feedback should reflect HDMI IN 3, not INPUT 11 (raw slot id `2A`)
-6. Repeat for INPUT 20
-
-## ⚠️ #30 — Set Device Label: non-printable / long input
-
-1. Set label to a string longer than 8 characters — only the first 8 should be written and stored
-2. Set label containing a tab or control character — it should be silently replaced with a space
-3. Set label to an empty string — module should log a warning; no write should be sent
-
----
-
-## Notes
-
-- **Unit tests**: `npm test` runs 113 automated unit tests across 5 test files:
-  - `test/tcpParser.test.js` — TCP parser: split packets, merged packets, auth prompts, delimiter ordering
-  - `test/queue.test.js` — priority queue drain, `_drainBatch`, 20 ms rate limit
-  - `test/multibyte.test.js` — multi-byte RQH query helpers, `_parseHexBlock`
-  - `test/sourcelabels.test.js` — label address mapping, ASCII decoding, invalid responses, write/readback
-  - `test/inputassign.test.js` — INPUT/XPT 1–20: address queries, slot→register mapping, updateData handler, CHOICES_INPUTSASSIGN/DSK_SOURCES boundary validation
-- Snapshot round-trips and all live-device protocol flows still require manual testing per the checklist above.
+# Test evidence and device test checklist
+
+Applies to **2.5.1-beta.1**, using the original runtime at `757da284994835383262349c7efd998ed89cac91`. Reviewed 2026-10-29. See [FEATURE-SUPPORT.md](FEATURE-SUPPORT.md) for missing or partial controls and known implementation discrepancies.
+
+**Needs a documented device test** means that we do not yet have a reproducible test record for this beta and setup. It does not mean that nobody has ever used the feature successfully. Source code, a unit test and a successful real-device workflow are different kinds of evidence.
+
+## Evidence already available
+
+The release passed **113 automated tests in 23 suites on Node 22.23.1**:
+
+| Test file | Tests | Scope |
+|---|---:|---|
+| `tcpParser.test.js` | 23 | Split/combined TCP messages, incomplete tails, authentication prompts and delimiter ordering |
+| `queue.test.js` | 6 | Selected queue ordering, high-priority scheduling, clearing/generation guards and command termination |
+| `multibyte.test.js` | 31 | Block validation and parsing of selected Freeze, source, output, AUX-link, PiP-tally and memory-name responses |
+| `sourcelabels.test.js` | 26 | Selected address mappings, ASCII/NUL handling, invalid replies, label writes and readback |
+| `inputassign.test.js` | 27 | INPUT1–20 query/mapping boundaries, assignment parsing, resolution and source-choice boundaries |
+| **Total** | **113** | Simulated inputs/sockets; selected production API methods |
+
+The suite does not comprehensively test action callbacks, feedback/preset rendering, snapshot files, PTZ, polling-tier timing, connection lifecycle or the complete authentication flow. A parser test recognizing a password prompt does not prove successful login to a switcher.
+
+The original [checklist at `757da28`](https://github.com/roopeberg/companion-module-roland-v160hd/blob/757da284994835383262349c7efd998ed89cac91/TESTING.md) records limited historical device checks: selected two-byte PiP read sizes, selected PiP1 addresses and the horizontal/vertical position range. It does not record the tested firmware/Companion versions or verify all four PiP channels. Preserve these as **historical partial verification**, and repeat them with a recorded environment.
+
+A user reported successful authentication after re-entering the password and improved operation. That is useful field feedback, but it does not mark every function below as passed. Later upstream Freeze test suites and emulator captures concern different code and are not counted as evidence for this package.
+
+`test/integration.js` and `test/restore.js` are separate scripts that can connect to and change a real switcher. They are not run by `yarn test`, and no completed result from them is included in this release's evidence.
+
+## Implemented functions still needing documented device testing
+
+| Area | Current evidence | What still needs checking |
+|---|---|---|
+| Authentication/reconnection | Prompt parsing; limited user login report | Fresh/imported settings, wrong password, network loss, reconnect, repeated configuration saves and long sessions |
+| Polling/traffic | Selected queue and response-parser unit tests | Continuous polling with repeated controls, startup load, delayed/lost traffic, queued writes during reconnect and a single polling loop after config changes |
+| PGM/PVW/AUX selection and tally | Response parsing and assignment-resolution tests | Actual bus output, independent feedback, physical versus INPUT sources, panel changes and simultaneous tally combinations |
+| INPUT/XPT1–20 | Query/mapping/choice-boundary tests | All used slots, device-side reassignment, reconnect and relevant panel-operation modes; preset text remains `INPUT N` |
+| Freeze | 18-byte response parsing | Global/type controls, all 16 input selections, Set Freeze press/release, rapid operations, panel changes and reconciliation after reconnect |
+| PiP/Key1–4 | Historical partial PiP1 checks; tally parsing | All four channels, exposed geometry/key/border controls, sources, on-air state and the supported capture/apply subset |
+| DSK1–2 | No complete device workflow record | Sources/type/bus controls; **resolve the known gain/mix snapshot discrepancy before treating Capture/Apply as a valid round trip** |
+| Snapshot files | Implementation present; not in the 113-test suite | Save/load/delete, restart, file transfer between computers and restoring the intended supported parameter subset |
+| Memories | Name decoding tests | Exposed recall/save operations, slots1/30, last-loaded feedback, names and changes made on the device |
+| Source labels | Mapping/decoder/write/readback helper tests | All 40 targets, actual device labels, explicit refresh after panel edits and dynamic preset text |
+| Output routing | Six-output response parsing | Each HDMI/SDI assignment; USB routing and its limited state-refresh behavior |
+| MONITOR button assignments | Implemented controls/readback | All four button assignments and the resulting device-monitor/HDMI OUT3 behavior; not four independent physical outputs |
+| Transition controls | No comprehensive device result | Mix/wipe configuration and returned state; **dedicated CUT/AUTO actions have a known address discrepancy** |
+| AUX mute/link | Selected AUX-link parsing | Actual audio mute/link behavior and device-side changes across AUX1–3 |
+| PTZ cameras | No comprehensive automated/device evidence | Each used camera/model: movement and stop, speed, zoom/focus, exposure, preset and tally-channel commands |
+| Macros/panel controls | Implemented paths outside the standard suite | Each configured macro or panel command, momentary release and interaction with the switcher's current setup |
+| Companion UI/platforms | Package validation and limited user use | Actual preset rendering, combined feedback styles, modifier release, variable text and the target Windows/macOS/Linux/Raspberry Pi setup |
+
+## Suggested test order
+
+1. **Record the environment.** Module version, Companion version/build, operating system, V-160HD firmware, camera models if used, polling setting/interval and panel-operation mode. Back up the configuration and use a test setup.
+2. **Connect and recover.** Re-enter Password and Save. Confirm authentication, then check a controlled disconnect/reconnect and a configuration save. Look for one polling loop and recovery of actual state, rather than only an OK status.
+3. **Check sources and feedback against real outputs.** Start with physical HDMI/SDI, then assigned INPUT slots. Change sources from both Companion and the switcher. Check PGM, PVW and each AUX independently and in combinations. Include the panel modes actually used in your workflow.
+4. **Check timing at your selected interval.** At the default 1000 ms, fast/medium/background reads occur every 1/2/10 seconds. At 500 ms they occur every 0.5/1/5 seconds. All tiers are requested once on startup, but responses and labels still take time. Confirm responsiveness while sending repeated controls; do not equate the nominal request count with measured delivery latency.
+5. **Check names and memories.** Names for 30 memory slots rotate in approximately 60 seconds at 1000 ms, or 30 seconds at 500 ms. After a source rename on the device, run Refresh Source Labels. Test an eight-character printable-ASCII label, its readback and a reconnect; verify the device and preset show the same name.
+6. **Check Freeze.** Test global On/Off and All/Select, then HDMI1–8 and SDI1–8 individually. Hold Set Freeze while selecting an input, release it, and confirm that the next normal input press selects PVW again. Check rapid presses and panel changes against the actual device state; local optimistic display alone is not a pass.
+7. **Check PiP/DSK and snapshots in isolation.** Test source/type/bus controls first. Capture known values, change them, apply the captured subset and compare the actual result. Snapshot files do not include every device parameter. Keep the known DSK gain/mix discrepancy separate from a successful PiP test; do not mark the entire snapshot system passed from one example.
+8. **Check transitions, panel controls, macros and cameras separately.** Record the exact action/preset used. The dedicated CUT/AUTO actions and generic panel-switch actions are different implementations. The dedicated address discrepancy must be resolved before claiming those actions work. For PTZ, test stop/release behavior as well as starting motion.
+
+## Recording a result
+
+Submit a [Test report](https://github.com/ReloadMediaOy/companion-module-roland-v160hd/issues/new?template=test_report.yml). List each tested feature as **passed**, **failed** or **not completed**, with steps, expected behavior and actual observations. Include short relevant logs or screenshots with passwords removed. A partial test report is useful; leave untested rows open.
+
+For a reproducible problem, file one [Bug report](https://github.com/ReloadMediaOy/companion-module-roland-v160hd/issues/new?template=bug_report.yml) and link it from the test report. Repeated confirmation of the same problem belongs in the existing issue. Unsupported dedicated features belong in the support matrix or a Feature Request, rather than being marked as a failed implementation.
