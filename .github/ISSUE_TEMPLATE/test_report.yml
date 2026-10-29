@@ -1,0 +1,74 @@
+name: Test report
+description: Share successful tests, partial results or problems found while testing.
+title: '[Test] '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Successful tests are useful too. Tell us what you actually tried and observed; one report can cover several related checks on the same setup.
+        For a reproducible bug, open a separate Bug report and link it below. Reports are public; remove passwords and other sensitive information from attachments.
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: Overall result
+      options:
+        - Passed
+        - Partial or mixed results
+        - Failed
+    validations:
+      required: true
+  - type: input
+    id: module-version
+    attributes:
+      label: Module version
+      description: The version selected for your Roland V-160HD connection.
+      placeholder: 'e.g. 2.5.1-beta.1'
+    validations:
+      required: true
+  - type: input
+    id: companion-version
+    attributes:
+      label: Companion version
+      placeholder: 'e.g. 5.0.5 (include the build number if available)'
+    validations:
+      required: true
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+      description: The operating system and version of the computer running Companion.
+      placeholder: 'e.g. Windows 11, macOS 15, or Raspberry Pi OS'
+    validations:
+      required: true
+  - type: input
+    id: firmware-version
+    attributes:
+      label: Roland V-160HD firmware version
+      description: Enter Unknown if you cannot check it, or Emulator if no real switcher was used.
+      placeholder: 'Firmware version'
+    validations:
+      required: true
+  - type: textarea
+    id: tests-and-setup
+    attributes:
+      label: What did you test, and how?
+      description: List the features and steps you tried. Include relevant setup details, such as source assignments, polling settings, physical buttons or the browser emulator.
+      placeholder: |
+        - Source selection and tally: ...
+        - Freeze controls: ...
+        - Source labels: ...
+        - Reconnection, PiP/DSK or snapshots: ...
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Results and observations
+      description: Say which checks passed, failed or were not completed. Include any difference between the expected and observed behavior, and link related bug reports.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, logs or other context (optional)
+      description: Attach supporting evidence if useful. Remove passwords and other sensitive information before posting.

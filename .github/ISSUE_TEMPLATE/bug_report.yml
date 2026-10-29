@@ -1,70 +1,69 @@
 name: Bug report
-description: Create a bug report to help us improve.
-labels:
-  - BUG
-title: '[BUG]'
+description: Report a problem with the Roland V-160HD module.
+title: '[Bug] '
 body:
-  - type: checkboxes
+  - type: markdown
     attributes:
-      label: Make sure you have updated to the latest version of the module
-      description: This may be a beta version of the module, or may require you to update your companion.
-      options:
-        - label: I have checked this on the latest version of the module
-          required: true
-  - type: checkboxes
-    attributes:
-      label: Is there an existing issue for this?
-      description: Please search to see if an issue already exists for the bug you encountered.
-      options:
-        - label: I have searched the existing issues
-          required: true
-  - type: textarea
-    attributes:
-      label: Describe the bug
-      description: A clear and concise description of what the bug is. Screenshots are always helpful to understand the problem.
-    validations:
-      required: false
-  - type: textarea
-    attributes:
-      label: Steps To Reproduce
-      description: Steps to reproduce the behavior.
-      placeholder: |
-        1. Go to '...'
-        2. Click on '....'
-        3. Scroll down to '....'
-        4. See error
-    validations:
-      required: false
-  - type: textarea
-    attributes:
-      label: Expected Behavior
-      description: A concise description of what you expected to happen.
-    validations:
-      required: false
-  - type: textarea
-    attributes:
-      label: Environment (please complete the following information)
-      description: |
-        examples:
-          - **OS**: Windows 10
-          - **Browser**: Chrome 94
-          - **Companion Version**: 2.2.0-b177f8fb-3722
-          - **Module Version**: 1.0.0
-          - **Device Firmware/Software Version (If applicable)**: 3.0.6
-          - **Device Model (If applicable)**: My Device PRO
       value: |
-        - OS:
-        - Browser:
-        - Companion Version:
-        - Module Version:
-        - Device Firmware/Software Version (If applicable):
-        - Device Model (If applicable):
-      render: markdown
-    validations:
-      required: false
-  - type: textarea
+        Please report one problem per issue and check existing issues first. If you found the same problem, add your details to that issue.
+        Reports are public. Remove passwords and other sensitive information from screenshots and logs.
+  - type: input
+    id: module-version
     attributes:
-      label: Additional context
-      description: Add any other context about the problem here.
+      label: Module version
+      description: The version selected for your Roland V-160HD connection.
+      placeholder: 'e.g. 2.5.1-beta.1'
     validations:
-      required: false
+      required: true
+  - type: input
+    id: companion-version
+    attributes:
+      label: Companion version
+      placeholder: 'e.g. 5.0.5 (include the build number if available)'
+    validations:
+      required: true
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+      description: The operating system and version of the computer running Companion.
+      placeholder: 'e.g. Windows 11, macOS 15, or Raspberry Pi OS'
+    validations:
+      required: true
+  - type: input
+    id: firmware-version
+    attributes:
+      label: Roland V-160HD firmware version
+      description: Enter Unknown if you cannot check it, or Emulator if no real switcher was used.
+      placeholder: 'Firmware version'
+    validations:
+      required: true
+  - type: textarea
+    id: actual-result
+    attributes:
+      label: What happened?
+      description: Describe the problem, including any error message and whether it happens every time.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the actions, presets or settings involved. If you cannot reproduce it reliably, describe what you were doing.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-result
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, logs or other context (optional)
+      description: Attach a screenshot or a short relevant log excerpt. Remove passwords and other sensitive information before posting.
