@@ -1,6 +1,6 @@
 {
 	"name": "roland-v160hd",
-	"version": "2.5.0",
+	"version": "2.5.1-beta.1",
 	"main": "index.js",
 	"scripts": {
 		"package": "companion-module-build",
@@ -10,7 +10,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/bitfocus/companion-module-roland-v160hd.git"
+		"url": "git+https://github.com/ReloadMediaOy/companion-module-roland-v160hd.git"
 	},
 	"license": "MIT",
 	"engines": {

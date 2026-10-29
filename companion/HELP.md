@@ -1,5 +1,9 @@
 # Roland V-160HD
 
+**ReloadMediaOy community test build 2.5.1-beta.1** — an unofficial build for Companion 5.x. Read the [installation and testing guide](https://github.com/ReloadMediaOy/companion-module-roland-v160hd/blob/test/community-2.5.1-beta.1/COMMUNITY-TESTING.md) for setup, known limitations and feedback instructions.
+
+When upgrading or transferring a connection, **re-enter Password and click Save**. The older configuration password is not automatically moved into Companion's separate secret storage. After editing a source name on the switcher, run **Refresh Source Labels** to update dynamic preset names.
+
 This module will allow you to control a Roland V-160HD switcher.
 
 The switcher should be running firmware 1.04 or higher. A password must be set on the switcher in order to enable remote control.

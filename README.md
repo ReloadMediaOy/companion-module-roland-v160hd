@@ -1,5 +1,9 @@
 # companion-module-roland-v160hd
 
+**ReloadMediaOy community test build 2.5.1-beta.1.** This is an unofficial prerelease, separate from the official Bitfocus module. Start with the [installation and testing guide](COMMUNITY-TESTING.md), including the password setup and source-name refresh instructions.
+
+This test build uses the original 2.5.0 implementation from [roopeberg commit `757da28`](https://github.com/roopeberg/companion-module-roland-v160hd/tree/757da284994835383262349c7efd998ed89cac91). Its runtime JavaScript is unchanged; this release adds test-build identification and documentation.
+
 Bitfocus Companion module for the **Roland V-160HD** HD video switcher.
 
 ## Requirements
