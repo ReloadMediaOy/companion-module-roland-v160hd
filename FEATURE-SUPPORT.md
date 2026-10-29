@@ -33,11 +33,13 @@ Implementation references: [actions](src/actions.js), [source choices and panel 
 
 ## Known implementation discrepancies
 
-These findings come from comparing the published source with the Roland Control Guide. No live-device test was performed to establish their exact symptoms, and no runtime fix is included in this documentation update.
+These findings were identified by comparing the published source with the Roland Control Guide. No device test was performed during that code audit. A subsequent user report of CUT Take failure is recorded below; the AUTO Take and DSK findings have not been confirmed by that report. No runtime fix is included in this documentation update.
 
 ### Dedicated CUT Take and AUTO Take addresses
 
 The dedicated actions send `DTH:08001E,01;` and `DTH:08001F,01;`. The Control Guide defines the CUT and AUTO panel buttons at **`0B001E` and `0B001F`**. These dedicated shortcuts therefore do not match the documented panel-switch addresses and should not be treated as validated controls.
+
+**Field report — 2026-10-29:** A user reports that **CUT Take does not work in version 2.5**. This is a user-reported device failure, not an independent reproduction or a verified fix. The exact module patch/build, firmware and detailed reproduction steps were not supplied. The report is consistent with the CUT address discrepancy; it does not confirm an AUTO Take failure.
 
 The generic **Press and Release Panel Switch** action offers CUT SW and AUTO SW with the documented `0B` addresses. That is an alternative command path to test, not evidence that all transition behavior has already been verified on hardware.
 

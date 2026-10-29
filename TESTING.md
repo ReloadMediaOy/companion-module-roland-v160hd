@@ -23,6 +23,8 @@ The original [checklist at `757da28`](https://github.com/roopeberg/companion-mod
 
 A user reported successful authentication after re-entering the password and improved operation. That is useful field feedback, but it does not mark every function below as passed. Later upstream Freeze test suites and emulator captures concern different code and are not counted as evidence for this package.
 
+**Field report — 2026-10-29:** A user reports that **CUT Take does not work in version 2.5**. This is a user-reported device failure, not an independent reproduction or a verified fix. The exact module patch/build, firmware and detailed reproduction steps were not supplied. The report is consistent with the CUT address discrepancy; it does not confirm an AUTO Take failure.
+
 `test/integration.js` and `test/restore.js` are separate scripts that can connect to and change a real switcher. They are not run by `yarn test`, and no completed result from them is included in this release's evidence.
 
 ## Implemented functions still needing documented device testing
@@ -41,7 +43,7 @@ A user reported successful authentication after re-entering the password and imp
 | Source labels | Mapping/decoder/write/readback helper tests | All 40 targets, actual device labels, explicit refresh after panel edits and dynamic preset text |
 | Output routing | Six-output response parsing | Each HDMI/SDI assignment; USB routing and its limited state-refresh behavior |
 | MONITOR button assignments | Implemented controls/readback | All four button assignments and the resulting device-monitor/HDMI OUT3 behavior; not four independent physical outputs |
-| Transition controls | No comprehensive device result | Mix/wipe configuration and returned state; **dedicated CUT/AUTO actions have a known address discrepancy** |
+| Transition controls | **CUT Take failure reported by a user on version 2.5**; exact setup not yet recorded | Reproduce CUT with recorded versions/steps and verify a future correction; separately test AUTO, mix/wipe settings and returned state. **Dedicated CUT/AUTO actions have a known address discrepancy.** |
 | AUX mute/link | Selected AUX-link parsing | Actual audio mute/link behavior and device-side changes across AUX1–3 |
 | PTZ cameras | No comprehensive automated/device evidence | Each used camera/model: movement and stop, speed, zoom/focus, exposure, preset and tally-channel commands |
 | Macros/panel controls | Implemented paths outside the standard suite | Each configured macro or panel command, momentary release and interaction with the switcher's current setup |

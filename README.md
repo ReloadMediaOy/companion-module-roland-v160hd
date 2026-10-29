@@ -16,6 +16,8 @@ Use Companion 5.x with module API 2.1.3 / Node 22 support. The module's inherite
 
 Two source-versus-manual discrepancies remain in the published runtime: the dedicated **CUT Take / AUTO Take** actions use different addresses from Roland's panel-switch commands, and **DSK Capture / Apply** uses inconsistent gain/mix addresses and lengths. Treat those paths as requiring correction and device verification; do not rely on them for a production take or a faithful DSK restore. Details and the separately implemented generic panel-switch controls are in [FEATURE-SUPPORT.md](FEATURE-SUPPORT.md#known-implementation-discrepancies).
 
+**Field report — 2026-10-29:** A user reports that **CUT Take does not work in version 2.5**. This is a user-reported device failure, not an independent reproduction or a verified fix. The exact module patch/build, firmware and detailed reproduction steps were not supplied. The report is consistent with the CUT address discrepancy; it does not confirm an AUTO Take failure.
+
 ## Communication and polling
 
 ### Receiving messages and establishing a connection
