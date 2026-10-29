@@ -74,7 +74,7 @@ Some controls update their displayed state locally before device confirmation. T
 | Memory | Exposed recall/save operations, names for slots 1–30 and last-loaded memory feedback |
 | Transitions and panel controls | Mix/wipe settings, generic panel press/release and macro execution; dedicated CUT/AUTO actions need correction/verification |
 | Routing | HDMI/SDI/USB output assignment controls, AUX mute/link, and assignments for the four MONITOR buttons |
-| Cameras | Exposed PTZ, focus, exposure, preset and tally-channel commands; each camera/setup needs testing |
+| Cameras | Exposed PTZ, focus, exposure-mode, camera-preset and tally-channel commands; **not tested by this build's publisher**; each camera/setup needs testing |
 | Companion interface | API 2.x variables, layered presets, bus indicators and source-type styling |
 
 Physical HDMI/SDI/Still presets can use device labels. INPUT/XPT presets retain fixed `INPUT N` text; existing manually labelled buttons are not rewritten. The MONITOR1–4 controls assign the device's monitor-selection buttons, not four independent physical video outputs.
@@ -96,6 +96,8 @@ Physical HDMI/SDI/Still presets can use device labels. INPUT/XPT presets retain 
 ## What is tested, and what is not supported?
 
 **113/113 automated tests passed on Node 22.23.1**, across parser, queue, block-response, source-label and INPUT-assignment tests. They use simulated data/sockets and are not comprehensive hardware qualification. Historical notes record only partial PiP device checks. Most other device workflows still need reproducible reports for this beta and the tester's firmware/setup.
+
+**Camera testing context:** The publisher uses this V-160HD mainly with presentation computers rather than for camera production and has not tested its camera-control functions at all. PTZ movement, camera presets, focus, exposure-mode and camera-tally controls are implemented, but have not been device-validated by the publisher. Test reports from users with camera setups are welcome.
 
 [FEATURE-SUPPORT.md](FEATURE-SUPPORT.md) separates implemented, partial and missing controls, including audio-mixer settings, video processing, multiview configuration, macro/sequence editing and device setup. [TESTING.md](TESTING.md) lists the implemented functions that still need documented testing and the evidence already available. A feature needing testing is not automatically unsupported.
 
