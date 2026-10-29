@@ -132,7 +132,18 @@ module.exports = {
 	getFreezeData: function () {
 		let self = this
 
-		self.sendRawCommand('RQH:020500,000001;') //Freeze on/off
+		// Freeze SW (020500) through SDI IN 8 select (020511) — 18 consecutive single-byte registers.
+		self.sendRawCommand('RQH:020500,000012;') //Freeze SW + type + 16 select inputs (18-byte block)
+	},
+
+	_parseHexBlock: function (value, expectedBytes) {
+		if (value.length !== expectedBytes * 2) return null
+		if (!/^[0-9A-Fa-f]+$/.test(value)) return null
+		const out = []
+		for (let i = 0; i < expectedBytes; i++) {
+			out.push(value.slice(i * 2, i * 2 + 2).toUpperCase())
+		}
+		return out
 	},
 
 	getOutputData: function () {
@@ -334,10 +345,42 @@ module.exports = {
 													}
 												}
 
-												if (param1 == '02' && param2 == '05' && param3 == '00') {
-													//freeze state
-													self.DATA.freeze = value
-													self.logVerbose('Received Freeze State: ' + value)
+												if (param1 == '02' && param2 == '05') {
+													if (param3 == '00') {
+														const block = self._parseHexBlock(value, 18)
+														if (block) {
+															// 18-byte block from RQH:020500,000012
+															self.DATA.freeze = block[0]
+															self.DATA.freeze_type = block[1]
+															for (let i = 2; i < block.length; i++) {
+																const addrHex = i.toString(16).padStart(2, '0').toUpperCase()
+																self.DATA[`freeze_select_${addrHex}`] = block[i]
+															}
+															self.logVerbose('Received freeze block: ' + value)
+														} else if (self._parseHexBlock(value, 1)) {
+															self.DATA.freeze = value
+															self.logVerbose('Received Freeze State: ' + value)
+														} else {
+															self.log('warn', 'Unexpected value for freeze state: ' + value)
+														}
+													} else if (param3 == '01') {
+														if (self._parseHexBlock(value, 1)) {
+															self.DATA.freeze_type = value
+															self.logVerbose('Received Freeze Type: ' + value)
+														} else {
+															self.log('warn', 'Unexpected value for freeze type: ' + value)
+														}
+													} else {
+														const p3 = parseInt(param3, 16)
+														if (p3 >= 2 && p3 <= 0x11) {
+															if (self._parseHexBlock(value, 1)) {
+																self.DATA[`freeze_select_${param3.toUpperCase()}`] = value
+																self.logVerbose('Received Freeze Select ' + param3 + ': ' + value)
+															} else {
+																self.log('warn', 'Unexpected value for freeze select ' + param3 + ': ' + value)
+															}
+														}
+													}
 												}
 
 												if (param1 == '01' && param2 == '22' && param3 == '03') {
